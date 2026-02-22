@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/miyamo2/phasedchecker/checkertest/internal"
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/checker"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/txtar"
@@ -237,17 +236,4 @@ func sortedKeys(m map[string][]diff.Edit) []string {
 	}
 	sort.Strings(keys)
 	return keys
-}
-
-// hasEdits checks if any of the given diagnostics contain SuggestedFixes
-// with TextEdits.
-func hasEdits(diagnostics []analysis.Diagnostic) bool {
-	for _, d := range diagnostics {
-		for _, fix := range d.SuggestedFixes {
-			if len(fix.TextEdits) > 0 {
-				return true
-			}
-		}
-	}
-	return false
 }
