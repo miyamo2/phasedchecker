@@ -25,13 +25,15 @@ func parseArgs(programName string, args []string) (*argument, error) {
 	fs := flag.NewFlagSet(programName, flag.ContinueOnError)
 
 	var (
-		fix       bool
-		printDiff bool
-		verbose   bool
+		fix        bool
+		printDiff  bool
+		verbose    bool
+		sequential bool
 	)
 	fs.BoolVar(&fix, "fix", false, "apply suggested fixes")
 	fs.BoolVar(&printDiff, "diff", false, "with -fix, don't update the files, but print a unified diff")
 	fs.BoolVar(&verbose, "v", false, "verbose output")
+	fs.BoolVar(&sequential, "sequential", false, "run analyzers sequentially within each phase")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err
@@ -43,9 +45,10 @@ func parseArgs(programName string, args []string) (*argument, error) {
 	}
 
 	return &argument{
-		Fix:       fix,
-		PrintDiff: printDiff,
-		Verbose:   verbose,
-		Patterns:  patterns,
+		Fix:        fix,
+		PrintDiff:  printDiff,
+		Verbose:    verbose,
+		Sequential: sequential,
+		Patterns:   patterns,
 	}, nil
 }

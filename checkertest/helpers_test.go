@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/miyamo2/phasedchecker/config"
+	"github.com/miyamo2/phasedchecker"
 	"github.com/miyamo2/phasedchecker/internal/x/tools/diff"
 	"golang.org/x/tools/go/analysis"
 	gochecker "golang.org/x/tools/go/analysis/checker"
@@ -426,9 +426,9 @@ func TestRunPipeline_AfterPhaseError(t *testing.T) {
 
 	dir := filepath.Join(testdataDir(), "basic")
 
-	cfg := config.Config{
-		Pipeline: config.Pipeline{
-			Phases: []config.Phase{
+	cfg := phasedchecker.Config{
+		Pipeline: phasedchecker.Pipeline{
+			Phases: []phasedchecker.Phase{
 				{
 					Name:      "phase1",
 					Analyzers: []*analysis.Analyzer{noopAnalyzer},

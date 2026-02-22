@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/miyamo2/phasedchecker/config"
+	"github.com/miyamo2/phasedchecker"
 	"golang.org/x/tools/go/analysis"
 )
 
@@ -191,9 +191,9 @@ func TestParseExpectations(t *testing.T) {
 func TestRun_BlockCommentWant(t *testing.T) {
 	dir := filepath.Join(testdataDir(), "blockcomment")
 
-	cfg := config.Config{
-		Pipeline: config.Pipeline{
-			Phases: []config.Phase{
+	cfg := phasedchecker.Config{
+		Pipeline: phasedchecker.Pipeline{
+			Phases: []phasedchecker.Phase{
 				{
 					Name:      "test",
 					Analyzers: []*analysis.Analyzer{diagAnalyzer},
@@ -212,9 +212,9 @@ func TestRun_BlockCommentWant(t *testing.T) {
 func TestRun_BasicDiagnostic(t *testing.T) {
 	dir := filepath.Join(testdataDir(), "basic")
 
-	cfg := config.Config{
-		Pipeline: config.Pipeline{
-			Phases: []config.Phase{
+	cfg := phasedchecker.Config{
+		Pipeline: phasedchecker.Pipeline{
+			Phases: []phasedchecker.Phase{
 				{
 					Name:      "test",
 					Analyzers: []*analysis.Analyzer{diagAnalyzer},
@@ -236,9 +236,9 @@ func TestRun_BasicDiagnostic(t *testing.T) {
 func TestRunWithSuggestedFixes_Golden(t *testing.T) {
 	dir := filepath.Join(testdataDir(), "golden")
 
-	cfg := config.Config{
-		Pipeline: config.Pipeline{
-			Phases: []config.Phase{
+	cfg := phasedchecker.Config{
+		Pipeline: phasedchecker.Pipeline{
+			Phases: []phasedchecker.Phase{
 				{
 					Name:      "test",
 					Analyzers: []*analysis.Analyzer{renameAnalyzer},
@@ -265,9 +265,9 @@ func TestRun_AnalyzerError(t *testing.T) {
 		},
 	}
 
-	cfg := config.Config{
-		Pipeline: config.Pipeline{
-			Phases: []config.Phase{
+	cfg := phasedchecker.Config{
+		Pipeline: phasedchecker.Pipeline{
+			Phases: []phasedchecker.Phase{
 				{
 					Name:      "test",
 					Analyzers: []*analysis.Analyzer{errAnalyzer},

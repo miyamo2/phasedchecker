@@ -13,6 +13,7 @@ func Test_parseArgs(t *testing.T) {
 		wantFix  bool
 		wantDiff bool
 		wantV    bool
+		wantSeq  bool
 		wantPats []string
 		wantErr  string
 	}{
@@ -45,6 +46,12 @@ func Test_parseArgs(t *testing.T) {
 			wantFix:  true,
 			wantDiff: true,
 			wantV:    true,
+			wantPats: []string{"./..."},
+		},
+		{
+			name:     "sequential flag",
+			args:     []string{"-sequential", "./..."},
+			wantSeq:  true,
 			wantPats: []string{"./..."},
 		},
 		{
@@ -89,6 +96,9 @@ func Test_parseArgs(t *testing.T) {
 				}
 				if args.Verbose != tt.wantV {
 					t.Errorf("Verbose = %v, want %v", args.Verbose, tt.wantV)
+				}
+				if args.Sequential != tt.wantSeq {
+					t.Errorf("Sequential = %v, want %v", args.Sequential, tt.wantSeq)
 				}
 				if len(args.Patterns) != len(tt.wantPats) {
 					t.Fatalf("Patterns = %v, want %v", args.Patterns, tt.wantPats)

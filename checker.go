@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/miyamo2/phasedchecker/severity"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/checker"
 	"golang.org/x/tools/go/packages"
@@ -45,10 +44,13 @@ type Config struct {
 	// Pipeline defines the phase-ordered analyzer execution plan.
 	Pipeline Pipeline
 	// DiagnosticPolicy determines how diagnostic categories map to severity levels and exit codes.
-	DiagnosticPolicy severity.DiagnosticPolicy
+	DiagnosticPolicy DiagnosticPolicy
 }
 
 // Run executes the full pipeline: load packages, run phases, apply fixes, and returns the exit code.
+//
+// Analyzer errors within a phase set exit code 1 but do not halt the pipeline;
+// subsequent phases still execute. Only SeverityCritical diagnostics cause immediate termination.
 func Run(cfg Config) (int, error) {
 	args, err := parseArgs(os.Args[0], os.Args[1:])
 	if err != nil {
@@ -57,7 +59,7 @@ func Run(cfg Config) (int, error) {
 	return run(cfg, args)
 }
 
-// Run executes the full pipeline: load packages, run phases, apply fixes, and returns the exit code.
+// run is the internal entry point that accepts pre-parsed arguments.
 func run(cfg Config, args *argument) (int, error) {
 	if args == nil {
 		return 1, fmt.Errorf("args cannot be nil")
@@ -106,11 +108,11 @@ func run(cfg Config, args *argument) (int, error) {
 			for _, d := range act.Diagnostics {
 				sv := resolveSeverity(d.Category, cfg.DiagnosticPolicy)
 				switch sv {
-				case severity.SeverityCritical:
+				case SeverityCritical:
 					return 1, fmt.Errorf("critical diagnostic: %s", d.Message)
-				case severity.SeverityError:
+				case SeverityError:
 					hasError = true
-				case severity.SeverityWarn:
+				case SeverityWarn:
 					hasDiagnostics = true
 				}
 			}
@@ -141,7 +143,7 @@ func run(cfg Config, args *argument) (int, error) {
 }
 
 // resolveSeverity finds the severity for a given category.
-func resolveSeverity(category string, policy severity.DiagnosticPolicy) severity.Severity {
+func resolveSeverity(category string, policy DiagnosticPolicy) Severity {
 	for _, rule := range policy.Rules {
 		if rule.Category == category {
 			return rule.Severity

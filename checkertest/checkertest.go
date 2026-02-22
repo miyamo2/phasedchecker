@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/miyamo2/phasedchecker"
 	"github.com/miyamo2/phasedchecker/checkertest/internal"
-	"github.com/miyamo2/phasedchecker/config"
 	gochecker "golang.org/x/tools/go/analysis/checker"
 	"golang.org/x/tools/go/packages"
 )
@@ -19,19 +19,19 @@ type Result struct {
 // Run executes the checker Config's Pipeline against the packages matched by
 // patterns in dir, and verifies that all diagnostics from all phases match
 // the // want directives in the source files.
-func Run(t *testing.T, dir string, cfg config.Config, patterns ...string) []*Result {
+func Run(t *testing.T, dir string, cfg phasedchecker.Config, patterns ...string) []*Result {
 	t.Helper()
 	return runPipeline(t, dir, cfg, false, patterns)
 }
 
 // RunWithSuggestedFixes is like Run but additionally applies SuggestedFixes
 // and compares the results against .golden files.
-func RunWithSuggestedFixes(t *testing.T, dir string, cfg config.Config, patterns ...string) []*Result {
+func RunWithSuggestedFixes(t *testing.T, dir string, cfg phasedchecker.Config, patterns ...string) []*Result {
 	t.Helper()
 	return runPipeline(t, dir, cfg, true, patterns)
 }
 
-func runPipeline(t internal.T, dir string, cfg config.Config, checkGolden bool, patterns []string) []*Result {
+func runPipeline(t internal.T, dir string, cfg phasedchecker.Config, checkGolden bool, patterns []string) []*Result {
 	t.Helper()
 
 	if len(cfg.Pipeline.Phases) == 0 {

@@ -1,19 +1,3 @@
-// Package checkertest provides testing utilities for the checker package.
-//
-// It is an alternative to golang.org/x/tools/go/analysis/analysistest
-// designed for checker's phase-based pipeline model. Like analysistest,
-// it supports // want directives for diagnostic matching and .golden files
-// for SuggestedFix verification.
-//
-// Usage:
-//
-//	func TestMyAnalyzer(t *testing.T) {
-//	    checkertest.Run(t, "testdata/mycase", checker.Config{...}, "./...")
-//	}
-//
-//	func TestMyAnalyzerFixes(t *testing.T) {
-//	    checkertest.RunWithSuggestedFixes(t, "testdata/mycase", checker.Config{...}, "./...")
-//	}
 package phasedchecker
 
 import (
@@ -24,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/miyamo2/phasedchecker/severity"
 	"golang.org/x/tools/go/analysis"
 	gochecker "golang.org/x/tools/go/analysis/checker"
 )
@@ -187,7 +170,7 @@ func Test_run_ExitCodes(t *testing.T) {
 						},
 					},
 				},
-				DiagnosticPolicy: severity.DiagnosticPolicy{DefaultSeverity: severity.SeverityInfo},
+				DiagnosticPolicy: DiagnosticPolicy{DefaultSeverity: SeverityInfo},
 			},
 			args:     &argument{Patterns: []string{"./..."}},
 			wantCode: 0,
@@ -218,8 +201,8 @@ func Test_run_ExitCodes(t *testing.T) {
 						},
 					},
 				},
-				DiagnosticPolicy: severity.DiagnosticPolicy{
-					Rules: []severity.CategoryRule{{Category: "err", Severity: severity.SeverityError}},
+				DiagnosticPolicy: DiagnosticPolicy{
+					Rules: []CategoryRule{{Category: "err", Severity: SeverityError}},
 				},
 			},
 			args:     &argument{Patterns: []string{"./..."}},
@@ -236,8 +219,8 @@ func Test_run_ExitCodes(t *testing.T) {
 						},
 					},
 				},
-				DiagnosticPolicy: severity.DiagnosticPolicy{
-					Rules: []severity.CategoryRule{{Category: "warn", Severity: severity.SeverityWarn}},
+				DiagnosticPolicy: DiagnosticPolicy{
+					Rules: []CategoryRule{{Category: "warn", Severity: SeverityWarn}},
 				},
 			},
 			args:     &argument{Patterns: []string{"./..."}},
@@ -254,7 +237,7 @@ func Test_run_ExitCodes(t *testing.T) {
 						},
 					},
 				},
-				DiagnosticPolicy: severity.DiagnosticPolicy{DefaultSeverity: severity.SeverityInfo},
+				DiagnosticPolicy: DiagnosticPolicy{DefaultSeverity: SeverityInfo},
 			},
 			args:     &argument{Patterns: []string{"./..."}},
 			wantCode: 0,
@@ -270,8 +253,8 @@ func Test_run_ExitCodes(t *testing.T) {
 						},
 					},
 				},
-				DiagnosticPolicy: severity.DiagnosticPolicy{
-					Rules: []severity.CategoryRule{{Category: "warn", Severity: severity.SeverityWarn}},
+				DiagnosticPolicy: DiagnosticPolicy{
+					Rules: []CategoryRule{{Category: "warn", Severity: SeverityWarn}},
 				},
 			},
 			args:     &argument{Fix: true, Patterns: []string{"./..."}},
@@ -291,10 +274,10 @@ func Test_run_ExitCodes(t *testing.T) {
 						},
 					},
 				},
-				DiagnosticPolicy: severity.DiagnosticPolicy{
-					Rules: []severity.CategoryRule{
-						{Category: "err", Severity: severity.SeverityError},
-						{Category: "warn", Severity: severity.SeverityWarn},
+				DiagnosticPolicy: DiagnosticPolicy{
+					Rules: []CategoryRule{
+						{Category: "err", Severity: SeverityError},
+						{Category: "warn", Severity: SeverityWarn},
 					},
 				},
 			},
@@ -312,8 +295,8 @@ func Test_run_ExitCodes(t *testing.T) {
 						},
 					},
 				},
-				DiagnosticPolicy: severity.DiagnosticPolicy{
-					Rules: []severity.CategoryRule{{Category: "crit", Severity: severity.SeverityCritical}},
+				DiagnosticPolicy: DiagnosticPolicy{
+					Rules: []CategoryRule{{Category: "crit", Severity: SeverityCritical}},
 				},
 			},
 			args:       &argument{Patterns: []string{"./..."}},
@@ -477,10 +460,12 @@ func Test_run_NonRootActionsSkipped(t *testing.T) {
 		Doc:  "dependency analyzer that reports a diagnostic",
 		Run: func(pass *analysis.Pass) (any, error) {
 			if len(pass.Files) > 0 {
-				pass.Report(analysis.Diagnostic{
-					Pos:     pass.Files[0].Pos(),
-					Message: "dep diagnostic",
-				})
+				pass.Report(
+					analysis.Diagnostic{
+						Pos:     pass.Files[0].Pos(),
+						Message: "dep diagnostic",
+					},
+				)
 			}
 			return nil, nil
 		},
@@ -503,8 +488,8 @@ func Test_run_NonRootActionsSkipped(t *testing.T) {
 				},
 			},
 		},
-		DiagnosticPolicy: severity.DiagnosticPolicy{
-			DefaultSeverity: severity.SeverityError,
+		DiagnosticPolicy: DiagnosticPolicy{
+			DefaultSeverity: SeverityError,
 		},
 	}
 
@@ -540,8 +525,8 @@ func Test_run_DiagAccumulation_AcrossPhases(t *testing.T) {
 				},
 			},
 		},
-		DiagnosticPolicy: severity.DiagnosticPolicy{
-			Rules: []severity.CategoryRule{{Category: "warn", Severity: severity.SeverityWarn}},
+		DiagnosticPolicy: DiagnosticPolicy{
+			Rules: []CategoryRule{{Category: "warn", Severity: SeverityWarn}},
 		},
 	}
 
@@ -704,75 +689,75 @@ func Test_resolveSeverity(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name     string
-		policy   severity.DiagnosticPolicy
+		policy   DiagnosticPolicy
 		category string
-		want     severity.Severity
+		want     Severity
 	}{
 		{
 			name:     "no rules returns DefaultSeverity",
-			policy:   severity.DiagnosticPolicy{DefaultSeverity: severity.SeverityInfo},
+			policy:   DiagnosticPolicy{DefaultSeverity: SeverityInfo},
 			category: "anything",
-			want:     severity.SeverityInfo,
+			want:     SeverityInfo,
 		},
 		{
 			name: "unmatched category returns DefaultSeverity",
-			policy: severity.DiagnosticPolicy{
-				Rules:           []severity.CategoryRule{{Category: "other", Severity: severity.SeverityError}},
-				DefaultSeverity: severity.SeverityWarn,
+			policy: DiagnosticPolicy{
+				Rules:           []CategoryRule{{Category: "other", Severity: SeverityError}},
+				DefaultSeverity: SeverityWarn,
 			},
 			category: "nomatch",
-			want:     severity.SeverityWarn,
+			want:     SeverityWarn,
 		},
 		{
 			name: "exact match returns Error",
-			policy: severity.DiagnosticPolicy{
-				Rules: []severity.CategoryRule{{Category: "err", Severity: severity.SeverityError}},
+			policy: DiagnosticPolicy{
+				Rules: []CategoryRule{{Category: "err", Severity: SeverityError}},
 			},
 			category: "err",
-			want:     severity.SeverityError,
+			want:     SeverityError,
 		},
 		{
 			name: "exact match returns Warn",
-			policy: severity.DiagnosticPolicy{
-				Rules: []severity.CategoryRule{{Category: "warn", Severity: severity.SeverityWarn}},
+			policy: DiagnosticPolicy{
+				Rules: []CategoryRule{{Category: "warn", Severity: SeverityWarn}},
 			},
 			category: "warn",
-			want:     severity.SeverityWarn,
+			want:     SeverityWarn,
 		},
 		{
 			name: "exact match returns Info",
-			policy: severity.DiagnosticPolicy{
-				Rules:           []severity.CategoryRule{{Category: "info", Severity: severity.SeverityInfo}},
-				DefaultSeverity: severity.SeverityError,
+			policy: DiagnosticPolicy{
+				Rules:           []CategoryRule{{Category: "info", Severity: SeverityInfo}},
+				DefaultSeverity: SeverityError,
 			},
 			category: "info",
-			want:     severity.SeverityInfo,
+			want:     SeverityInfo,
 		},
 		{
 			name: "first matching rule wins",
-			policy: severity.DiagnosticPolicy{
-				Rules: []severity.CategoryRule{
-					{Category: "cat", Severity: severity.SeverityWarn},
-					{Category: "cat", Severity: severity.SeverityError},
+			policy: DiagnosticPolicy{
+				Rules: []CategoryRule{
+					{Category: "cat", Severity: SeverityWarn},
+					{Category: "cat", Severity: SeverityError},
 				},
 			},
 			category: "cat",
-			want:     severity.SeverityWarn,
+			want:     SeverityWarn,
 		},
 		{
 			name: "empty category matches",
-			policy: severity.DiagnosticPolicy{
-				Rules:           []severity.CategoryRule{{Category: "", Severity: severity.SeverityError}},
-				DefaultSeverity: severity.SeverityInfo,
+			policy: DiagnosticPolicy{
+				Rules:           []CategoryRule{{Category: "", Severity: SeverityError}},
+				DefaultSeverity: SeverityInfo,
 			},
 			category: "",
-			want:     severity.SeverityError,
+			want:     SeverityError,
 		},
 		{
 			name:     "zero value Policy returns SeverityInfo",
-			policy:   severity.DiagnosticPolicy{},
+			policy:   DiagnosticPolicy{},
 			category: "anything",
-			want:     severity.SeverityInfo,
+			want:     SeverityInfo,
 		},
 	}
 	for _, tt := range tests {
