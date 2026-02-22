@@ -1,3 +1,9 @@
+// Package checkertest provides testing utilities for phase-based analysis pipelines.
+// It is analogous to [analysistest] but designed for [phasedchecker.Config] pipelines,
+// verifying diagnostics against // want directives and optionally checking suggested
+// fixes against .golden files.
+//
+// [analysistest]: golang.org/x/tools/go/analysis/analysistest
 package checkertest
 
 import (
@@ -12,7 +18,9 @@ import (
 
 // Result holds the result of executing a single phase.
 type Result struct {
+	// Phase is the name of the executed phase.
 	Phase string
+	// Graph is the analysis result graph produced by [checker.Analyze] for this phase.
 	Graph *gochecker.Graph
 }
 
