@@ -1,0 +1,7 @@
+package main
+
+var baz = 1 // want `renaming "bar" to "baz"`
+
+func main() {
+	_ = baz // want `renaming "bar" to "baz"`
+}
