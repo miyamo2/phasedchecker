@@ -1,0 +1,40 @@
+coverage:
+  if: true
+  acceptable: 70%
+  exclude:
+    - 'github.com/miyamo2/phasedchecker/internal/x/**/*'
+  paths:
+    - 'coverage.out'
+  badge:
+    path: .assets/test_cov.svg
+codeToTestRatio:
+  code:
+    - '**/*.go'
+    - '!internal/x/**/*.go'
+    - '!**/*_test.go'
+  test:
+    - '**/*_test.go'
+  badge:
+    path: .assets/ratio.svg
+testExecutionTime:
+  if: true
+  badge:
+    path: .assets/time.svg
+comment:
+  if: is_pull_request
+body:
+  if: is_pull_request
+summary:
+  if: true
+diff:
+  datastores:
+    - artifact://${GITHUB_REPOSITORY}
+report:
+  if: is_default_branch
+  datastores:
+    - artifact://${GITHUB_REPOSITORY}
+push:
+  if: is_default_branch
+  datastores:
+    - github://${GITHUB_REPOSITORY}
+  message: "Update coverage badges"
