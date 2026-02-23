@@ -1,8 +1,12 @@
 package phasedchecker
 
 import (
+	"crypto/sha256"
 	"flag"
 	"fmt"
+	"io"
+	"log"
+	"os"
 	"strings"
 )
 
@@ -28,6 +32,35 @@ func (a *argument) dbg(b byte) bool {
 	return strings.IndexByte(a.Debug, b) >= 0
 }
 
+// versionFlag minimally complies with the -V protocol required by "go vet".
+type versionFlag struct{}
+
+func (versionFlag) IsBoolFlag() bool { return true }
+func (versionFlag) Get() any         { return nil }
+func (versionFlag) String() string   { return "" }
+func (versionFlag) Set(s string) error {
+	if s != "full" {
+		log.Fatalf("unsupported flag value: -V=%s (use -V=full)", s)
+	}
+	progname, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	f, err := os.Open(progname)
+	if err != nil {
+		log.Fatal(err)
+	}
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		log.Fatal(err)
+	}
+	f.Close()
+	fmt.Printf("%s version devel comments-go-here buildID=%02x\n",
+		progname, string(h.Sum(nil)))
+	os.Exit(0)
+	return nil
+}
+
 // parseArgs parses command-line arguments and returns argument.
 func parseArgs(programName string, args []string) (*argument, error) {
 	fs := flag.NewFlagSet(programName, flag.ContinueOnError)
@@ -44,6 +77,7 @@ func parseArgs(programName string, args []string) (*argument, error) {
 	fs.BoolVar(&jsonMode, "json", false, "emit JSON output to stdout")
 	fs.BoolVar(&test, "test", true, "indicates whether test files should be analyzed")
 	fs.StringVar(&debug, "debug", "", `debug flags, any subset of "fpstv"`)
+	fs.Var(versionFlag{}, "V", "print version and exit")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err

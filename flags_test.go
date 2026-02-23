@@ -5,6 +5,20 @@ import (
 	"testing"
 )
 
+func Test_versionFlag(t *testing.T) {
+	t.Parallel()
+	var v versionFlag
+	if !v.IsBoolFlag() {
+		t.Error("IsBoolFlag() = false, want true")
+	}
+	if v.Get() != nil {
+		t.Errorf("Get() = %v, want nil", v.Get())
+	}
+	if v.String() != "" {
+		t.Errorf("String() = %q, want empty", v.String())
+	}
+}
+
 func Test_parseArgs(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

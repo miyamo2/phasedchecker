@@ -130,6 +130,7 @@ The binary built with `phasedchecker.Main` accepts the following flags:
 | `-json` | `false` | Emit JSON diagnostics to stdout |
 | `-test` | `true` | Include test files in analysis |
 | `-debug` | `""` | Debug flags, any subset of `"fpstv"` |
+| `-V` | — | Print version info and exit (`go vet` protocol) |
 
 ### Debug Flags
 

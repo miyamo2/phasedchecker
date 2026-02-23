@@ -28,7 +28,7 @@ make sync-x-tools
 
 - **`checker.go`** — Main entry point. `Main()` parses CLI args, loads packages, and executes the pipeline. Each `Phase` runs `checker.Analyze()` on its analyzers, processes diagnostics by severity, optionally applies fixes, then calls the `AfterPhase` callback. Exit codes: 0=clean, 1=error/critical, 3=warnings only (no fix mode). In JSON mode (`-json`), exit is always 0 (diagnostics are emitted as JSON to stdout) unless a Critical diagnostic triggers early termination.
 - **`severity.go`** — Severity levels (`SeverityInfo`, `SeverityWarn`, `SeverityError`, `SeverityCritical`) and `DiagnosticPolicy` (category-to-severity rules with first-match-wins semantics and a default). These types are in the root package, not a separate `severity/` package.
-- **`flags.go`** — CLI argument parsing (`-fix`, `-diff`, `-json`, `-test`, `-debug`). Debug flags are a subset of `"fpstv"`: `f`=fact logging, `p`=sequential (no parallelism), `s`=sanity check, `t`=timing, `v`=verbose.
+- **`flags.go`** — CLI argument parsing (`-fix`, `-diff`, `-json`, `-test`, `-debug`, `-V`). Debug flags are a subset of `"fpstv"`: `f`=fact logging, `p`=sequential (no parallelism), `s`=sanity check, `t`=timing, `v`=verbose. The `-V=full` flag implements the `go vet` version protocol (prints executable name + SHA256 hash).
 - **`fix.go`** — Fix application via vendored `driverutil.ApplyFixes()`. Uses `reflect` + `unsafe` to extract the unexported `pass` field from `checker.Action` — this couples tightly to the `checker.Action` struct layout in `x/tools`.
 
 ### Key Types
@@ -53,5 +53,7 @@ Copies of `golang.org/x/tools` internal packages (`diff`, `driverutil`, `free`) 
 ## Conventions
 
 - Go 1.25 required
-- Tests use `setupTestModule()` to create temporary Go modules with specific source files
+- Tests use `setupTestModule()` to create temporary Go modules, then `t.Chdir(dir)` to switch to the temp directory before calling `run()`
 - `checkertest` uses `phasedchecker.Config` directly (no intermediate config package)
+- `Severity` iota has intentional gaps (reserved values for future debug/notice/fatal/emergency levels) — do not renumber
+- Coverage threshold is 70% (`.octocov.yml`). `internal/x/tools/` and `.examples/` are excluded from coverage and code-to-test ratio metrics
