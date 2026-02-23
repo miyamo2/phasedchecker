@@ -59,6 +59,6 @@ Copies of `golang.org/x/tools` internal packages (`diff`, `driverutil`, `free`) 
 
 ## Conventions
 
-- Go 1.25 required (uses `t.Chdir` in tests, `checker.Analyze` API)
+- Go 1.25 required
 - Tests use `setupTestModule()` to create temporary Go modules with specific source files
 - The `checkertest` package uses `config.Config` (not root `Config`) to break import cycles
