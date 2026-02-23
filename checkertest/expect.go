@@ -92,47 +92,46 @@ func collectExpectations(t internal.T, pkgs []*packages.Package) map[expectKey][
 	t.Helper()
 	wants := make(map[expectKey][]*expectation)
 
-	packages.Visit(
-		pkgs, func(pkg *packages.Package) bool {
-			for _, f := range pkg.Syntax {
-				tokFile := pkg.Fset.File(f.FileStart)
-				filename := tokFile.Name()
-				for _, cg := range f.Comments {
-					for _, c := range cg.List {
-						text := c.Text
-						posn := pkg.Fset.Position(c.Pos())
+	// Only scan root packages, not transitive dependencies (e.g. stdlib),
+	// whose source may contain unrelated "// want" comments.
+	for _, pkg := range pkgs {
+		for _, f := range pkg.Syntax {
+			tokFile := pkg.Fset.File(f.FileStart)
+			filename := tokFile.Name()
+			for _, cg := range f.Comments {
+				for _, c := range cg.List {
+					text := c.Text
+					posn := pkg.Fset.Position(c.Pos())
 
-						// Handle // comments
-						if rest, ok := strings.CutPrefix(text, "//"); ok {
-							text = rest
-						} else if rest, ok := strings.CutPrefix(text, "/*"); ok {
-							text = strings.TrimSuffix(rest, "*/")
-						}
+					// Handle // comments
+					if rest, ok := strings.CutPrefix(text, "//"); ok {
+						text = rest
+					} else if rest, ok := strings.CutPrefix(text, "/*"); ok {
+						text = strings.TrimSuffix(rest, "*/")
+					}
 
-						// Support "//...// want" pattern (comment on comment).
-						if idx := strings.LastIndex(text, "// want"); idx >= 0 {
-							text = text[idx+len("// want"):]
-						} else if rest, ok := strings.CutPrefix(strings.TrimSpace(text), "want"); ok {
-							text = rest
-						} else {
-							continue
-						}
+					// Support "//...// want" pattern (comment on comment).
+					if idx := strings.LastIndex(text, "// want"); idx >= 0 {
+						text = text[idx+len("// want"):]
+					} else if rest, ok := strings.CutPrefix(strings.TrimSpace(text), "want"); ok {
+						text = rest
+					} else {
+						continue
+					}
 
-						lineDelta, expects, err := parseExpectations(text)
-						if err != nil {
-							t.Errorf("%s:%d: in 'want' comment: %s", filename, posn.Line, err)
-							continue
-						}
-						if len(expects) > 0 {
-							k := expectKey{file: filename, line: posn.Line + lineDelta}
-							wants[k] = append(wants[k], expects...)
-						}
+					lineDelta, expects, err := parseExpectations(text)
+					if err != nil {
+						t.Errorf("%s:%d: in 'want' comment: %s", filename, posn.Line, err)
+						continue
+					}
+					if len(expects) > 0 {
+						k := expectKey{file: filename, line: posn.Line + lineDelta}
+						wants[k] = append(wants[k], expects...)
 					}
 				}
 			}
-			return true
-		}, nil,
-	)
+		}
+	}
 
 	return wants
 }
