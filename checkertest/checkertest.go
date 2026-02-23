@@ -121,8 +121,9 @@ func loadPackages(t internal.T, dir string, patterns []string) []*packages.Packa
 	t.Helper()
 
 	cfg := &packages.Config{
-		Mode: packages.LoadAllSyntax,
-		Dir:  dir,
+		Mode:  packages.LoadAllSyntax,
+		Dir:   dir,
+		Tests: true,
 	}
 
 	pkgs, err := packages.Load(cfg, patterns...)

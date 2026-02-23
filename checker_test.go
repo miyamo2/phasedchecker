@@ -894,6 +894,77 @@ func Test_run_JSON_ExitCodes(t *testing.T) {
 	}
 }
 
+func Test_run_TestFlag(t *testing.T) {
+	testOnlyAnalyzer := &analysis.Analyzer{
+		Name: "testonly",
+		Doc:  "reports diagnostic when testOnly identifier is found",
+		Run: func(pass *analysis.Pass) (any, error) {
+			for _, f := range pass.Files {
+				ast.Inspect(
+					f, func(n ast.Node) bool {
+						ident, ok := n.(*ast.Ident)
+						if !ok || ident.Name != "testOnly" {
+							return true
+						}
+						pass.Report(
+							analysis.Diagnostic{
+								Pos:      ident.Pos(),
+								Message:  "found testOnly",
+								Category: "testonly",
+							},
+						)
+						return true
+					},
+				)
+			}
+			return nil, nil
+		},
+	}
+
+	dir := setupTestModule(
+		t, map[string]string{
+			"main.go": minimalMain,
+			"main_test.go": `package main
+
+var testOnly = 1
+`,
+		},
+	)
+	t.Chdir(dir)
+
+	cfg := Config{
+		Pipeline: Pipeline{
+			Phases: []Phase{
+				{
+					Name:      "test",
+					Analyzers: []*analysis.Analyzer{testOnlyAnalyzer},
+				},
+			},
+		},
+		DiagnosticPolicy: DiagnosticPolicy{
+			Rules: []CategoryRule{{Category: "testonly", Severity: SeverityWarn}},
+		},
+	}
+
+	// With Test: true (default), test files are loaded and diagnostic is found.
+	code, err := run(cfg, &argument{Test: true, Patterns: []string{"./..."}})
+	if err != nil {
+		t.Fatalf("Test=true: unexpected error: %v", err)
+	}
+	if code != 3 {
+		t.Errorf("Test=true: exit code = %d, want 3 (warn from test file)", code)
+	}
+
+	// With Test: false, test files are excluded and no diagnostic is found.
+	code, err = run(cfg, &argument{Test: false, Patterns: []string{"./..."}})
+	if err != nil {
+		t.Fatalf("Test=false: unexpected error: %v", err)
+	}
+	if code != 0 {
+		t.Errorf("Test=false: exit code = %d, want 0 (no test files loaded)", code)
+	}
+}
+
 func Test_run_JSON_FixTakesPrecedence(t *testing.T) {
 	dir := setupTestModule(
 		t, map[string]string{

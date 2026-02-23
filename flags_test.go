@@ -13,6 +13,7 @@ func Test_parseArgs(t *testing.T) {
 		wantFix   bool
 		wantDiff  bool
 		wantJSON  bool
+		wantTest  bool
 		wantDebug string
 		wantPats  []string
 		wantErr   string
@@ -20,18 +21,21 @@ func Test_parseArgs(t *testing.T) {
 		{
 			name:     "basic pattern",
 			args:     []string{"./..."},
+			wantTest: true,
 			wantPats: []string{"./..."},
 		},
 		{
 			name:     "fix flag",
 			args:     []string{"-fix", "./..."},
 			wantFix:  true,
+			wantTest: true,
 			wantPats: []string{"./..."},
 		},
 		{
 			name:     "diff flag",
 			args:     []string{"-diff", "./..."},
 			wantDiff: true,
+			wantTest: true,
 			wantPats: []string{"./..."},
 		},
 		{
@@ -39,28 +43,33 @@ func Test_parseArgs(t *testing.T) {
 			args:     []string{"-fix", "-diff", "./..."},
 			wantFix:  true,
 			wantDiff: true,
+			wantTest: true,
 			wantPats: []string{"./..."},
 		},
 		{
 			name:      "debug all flags",
 			args:      []string{"-debug=vpstf", "./..."},
 			wantDebug: "vpstf",
+			wantTest:  true,
 			wantPats:  []string{"./..."},
 		},
 		{
 			name:      "debug subset",
 			args:      []string{"-debug=vt", "./..."},
 			wantDebug: "vt",
+			wantTest:  true,
 			wantPats:  []string{"./..."},
 		},
 		{
 			name:     "no debug flag",
 			args:     []string{"./..."},
+			wantTest: true,
 			wantPats: []string{"./..."},
 		},
 		{
 			name:     "multiple patterns",
 			args:     []string{"pkg1", "pkg2"},
+			wantTest: true,
 			wantPats: []string{"pkg1", "pkg2"},
 		},
 		{
@@ -72,6 +81,7 @@ func Test_parseArgs(t *testing.T) {
 			name:     "json flag",
 			args:     []string{"-json", "./..."},
 			wantJSON: true,
+			wantTest: true,
 			wantPats: []string{"./..."},
 		},
 		{
@@ -79,6 +89,13 @@ func Test_parseArgs(t *testing.T) {
 			args:     []string{"-json", "-fix", "./..."},
 			wantJSON: true,
 			wantFix:  true,
+			wantTest: true,
+			wantPats: []string{"./..."},
+		},
+		{
+			name:     "test flag disabled",
+			args:     []string{"-test=false", "./..."},
+			wantTest: false,
 			wantPats: []string{"./..."},
 		},
 		{
@@ -113,6 +130,9 @@ func Test_parseArgs(t *testing.T) {
 				}
 				if args.JSON != tt.wantJSON {
 					t.Errorf("JSON = %v, want %v", args.JSON, tt.wantJSON)
+				}
+				if args.Test != tt.wantTest {
+					t.Errorf("Test = %v, want %v", args.Test, tt.wantTest)
 				}
 				if args.Debug != tt.wantDebug {
 					t.Errorf("Debug = %q, want %q", args.Debug, tt.wantDebug)
