@@ -117,7 +117,7 @@ See the [multiphase example](.examples/multiphase/main.go) for a complete demons
 | `SeverityInfo` | No | No effect | Continues |
 | `SeverityWarn` | Yes (stderr) | 3 (if no errors and fix mode disabled) | Continues |
 | `SeverityError` | Yes (stderr) | 1 | Continues |
-| `SeverityCritical` | Yes (stderr) | 1 | **Aborts immediately** |
+| `SeverityCritical` | Yes (stderr) | 1 | **Aborts at the current phase** |
 
 ## CLI Flags
 
