@@ -31,7 +31,7 @@ make sync-x-tools
 
 - **`checker.go`** — Main entry point. `Main()` parses CLI args, loads packages via `packages.LoadSyntax | packages.NeedModule`, and executes the pipeline. Each `Phase` runs `checker.Analyze()` on its analyzers, processes diagnostics by severity, optionally applies fixes, then calls the `AfterPhase` callback.
 - **`severity.go`** — Severity levels and `DiagnosticPolicy` (category-to-severity rules with first-match-wins semantics and a default). Types are in the root package, not a separate sub-package. Severity iota values have reserved gaps for future levels (debug, notice, fatal, emergency).
-- **`flags.go`** — CLI argument parsing (`-fix`, `-diff`, `-json`, `-test`, `-debug`). Debug flags are a subset of `"fpstv"`: `f`=fact logging, `p`=sequential (no parallelism), `s`=sanity check, `t`=timing, `v`=verbose.
+- **`flags.go`** — CLI argument parsing (`-fix`, `-diff`, `-json`, `-test`, `-debug`, `-V`). Debug flags are a subset of `"fpstv"`: `f`=fact logging, `p`=sequential (no parallelism), `s`=sanity check, `t`=timing, `v`=verbose. The `-V=full` flag implements the `go vet` version protocol (prints executable name + SHA256 hash).
 - **`fix.go`** — Fix application via vendored `driverutil.ApplyFixes()`. Uses `reflect` + `unsafe` to extract the unexported `pass` field from `checker.Action` — this couples tightly to the `checker.Action` struct layout in `x/tools`.
 
 ### Key Types
@@ -75,6 +75,7 @@ Three examples (`basic`, `severity`, `multiphase`), each with its own `go.mod` u
 ## Conventions
 
 - Go 1.25 required
-- Tests use `setupTestModule()` to create temporary Go modules with specific source files
+- Tests use `setupTestModule()` to create temporary Go modules, then `t.Chdir(dir)` to switch to the temp directory before calling `run()`
 - `checkertest` uses `phasedchecker.Config` directly (no intermediate config package)
-- Coverage excludes `internal/x/**/*` and `.examples/**/*` (configured in `.octocov.yml`, acceptable threshold: 70%)
+- `Severity` iota has intentional gaps (reserved values for future debug/notice/fatal/emergency levels) — do not renumber
+- Coverage threshold is 70% (`.octocov.yml`). `internal/x/tools/` and `.examples/` are excluded from coverage and code-to-test ratio metrics
