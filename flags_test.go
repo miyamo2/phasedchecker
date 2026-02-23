@@ -8,12 +8,13 @@ import (
 func Test_parseArgs(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name     string
-		args     []string
-		wantFix  bool
-		wantDiff bool
-		wantPats []string
-		wantErr  string
+		name      string
+		args      []string
+		wantFix   bool
+		wantDiff  bool
+		wantDebug string
+		wantPats  []string
+		wantErr   string
 	}{
 		{
 			name:     "basic pattern",
@@ -37,6 +38,23 @@ func Test_parseArgs(t *testing.T) {
 			args:     []string{"-fix", "-diff", "./..."},
 			wantFix:  true,
 			wantDiff: true,
+			wantPats: []string{"./..."},
+		},
+		{
+			name:      "debug all flags",
+			args:      []string{"-debug=vpstf", "./..."},
+			wantDebug: "vpstf",
+			wantPats:  []string{"./..."},
+		},
+		{
+			name:      "debug subset",
+			args:      []string{"-debug=vt", "./..."},
+			wantDebug: "vt",
+			wantPats:  []string{"./..."},
+		},
+		{
+			name:     "no debug flag",
+			args:     []string{"./..."},
 			wantPats: []string{"./..."},
 		},
 		{
@@ -78,6 +96,9 @@ func Test_parseArgs(t *testing.T) {
 				}
 				if args.PrintDiff != tt.wantDiff {
 					t.Errorf("PrintDiff = %v, want %v", args.PrintDiff, tt.wantDiff)
+				}
+				if args.Debug != tt.wantDebug {
+					t.Errorf("Debug = %q, want %q", args.Debug, tt.wantDebug)
 				}
 				if len(args.Patterns) != len(tt.wantPats) {
 					t.Fatalf("Patterns = %v, want %v", args.Patterns, tt.wantPats)

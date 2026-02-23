@@ -11,7 +11,11 @@ package phasedchecker
 import (
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"os"
+	"sort"
+	"time"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/checker"
@@ -68,6 +72,12 @@ func run(cfg Config, args *argument) (int, error) {
 		return 1, fmt.Errorf("pipeline has no phases")
 	}
 
+	if args.dbg('v') {
+		log.SetPrefix("")
+		log.SetFlags(log.Lmicroseconds)
+		log.Printf("load %s", args.Patterns)
+	}
+
 	pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadAllSyntax}, args.Patterns...)
 	if err != nil {
 		return 1, fmt.Errorf("loading packages: %w", err)
@@ -85,12 +95,28 @@ func run(cfg Config, args *argument) (int, error) {
 		return 1, fmt.Errorf("package loading errors: %w", errors.Join(loadErrors...))
 	}
 
+	var factLog io.Writer
+	if args.dbg('f') {
+		factLog = os.Stderr
+	}
+
+	type phaseResult struct {
+		name  string
+		graph *checker.Graph
+	}
+	var results []phaseResult
+
 	hasError := false
 	hasDiagnostics := false
 	for _, phase := range cfg.Pipeline.Phases {
+		if args.dbg('v') {
+			log.Printf("phase %q: building graph of analysis passes", phase.Name)
+		}
 		graph, err := checker.Analyze(
 			phase.Analyzers, pkgs, &checker.Options{
-				Sequential: args.Sequential,
+				SanityCheck: args.dbg('s'),
+				Sequential:  args.dbg('p'),
+				FactLog:     factLog,
 			},
 		)
 		if err != nil {
@@ -118,18 +144,50 @@ func run(cfg Config, args *argument) (int, error) {
 			}
 		}
 
-		if args.Fix {
-			if err := applyFixes(graph, args.PrintDiff, args.Verbose); err != nil {
-				return 1, fmt.Errorf("applying fixes for phase %q: %w", phase.Name, err)
-			}
-		} else {
-			_ = graph.PrintText(os.Stderr, -1)
-		}
+		results = append(results, phaseResult{phase.Name, graph})
 
 		if phase.AfterPhase != nil {
 			if err := phase.AfterPhase(graph); err != nil {
 				return 1, fmt.Errorf("phase %q after-phase callback: %w", phase.Name, err)
 			}
+		}
+	}
+
+	if args.dbg('t') {
+		if !args.dbg('p') {
+			log.Println("Warning: times are mostly GC/scheduler noise; use -debug=tp to disable parallelism")
+		}
+		var list []*checker.Action
+		var total time.Duration
+		for _, r := range results {
+			for act := range r.graph.All() {
+				list = append(list, act)
+				total += act.Duration
+			}
+		}
+		sort.Slice(list, func(i, j int) bool {
+			return list[i].Duration > list[j].Duration
+		})
+		var sum time.Duration
+		for _, act := range list {
+			fmt.Fprintf(os.Stderr, "%s\t%s\n", act.Duration, act)
+			sum += act.Duration
+			if sum >= total*9/10 {
+				break
+			}
+		}
+		if total > sum {
+			fmt.Fprintf(os.Stderr, "%s\tall others\n", total-sum)
+		}
+	}
+
+	for _, r := range results {
+		if args.Fix {
+			if err := applyFixes(r.graph, args.PrintDiff, args.dbg('v')); err != nil {
+				return 1, fmt.Errorf("applying fixes for phase %q: %w", r.name, err)
+			}
+		} else {
+			_ = r.graph.PrintText(os.Stderr, -1)
 		}
 	}
 

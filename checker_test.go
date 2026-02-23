@@ -648,7 +648,7 @@ func Test_run_Sequential(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Sequential: true, Patterns: []string{"./..."}})
+	code, err := run(cfg, &argument{Debug: "p", Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -36,11 +36,7 @@ func applyFixes(graph *checker.Graph, printDiff, verbose bool) error {
 	}
 
 	writeFile := func(filename string, content []byte) error {
-		perm := os.FileMode(0644)
-		if fi, err := os.Stat(filename); err == nil {
-			perm = fi.Mode().Perm()
-		}
-		return os.WriteFile(filename, content, perm)
+		return os.WriteFile(filename, content, 0644)
 	}
 
 	return driverutil.ApplyFixes(actions, writeFile, printDiff, verbose)
