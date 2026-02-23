@@ -2,11 +2,24 @@ package phasedchecker
 
 import (
 	"os"
+	"reflect"
+	"unsafe"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/checker"
 
 	"github.com/miyamo2/phasedchecker/internal/x/tools/driverutil"
 )
+
+// actionPass extracts the unexported pass field from a checker.Action using reflect.
+func actionPass(act *checker.Action) *analysis.Pass {
+	v := reflect.ValueOf(act).Elem()
+	f := v.FieldByName("pass")
+	if !f.IsValid() || f.IsNil() {
+		return nil
+	}
+	return (*analysis.Pass)(unsafe.Pointer(f.Pointer()))
+}
 
 // applyFixes collects all diagnostics with SuggestedFixes from the graph
 // and applies the first fix for each diagnostic to the source files.
@@ -18,15 +31,20 @@ func applyFixes(graph *checker.Graph, printDiff, verbose bool) error {
 			continue
 		}
 
+		readFile := func(filename string) ([]byte, error) {
+			return os.ReadFile(filename)
+		}
+		if pass := actionPass(act); pass != nil && pass.ReadFile != nil {
+			readFile = pass.ReadFile
+		}
+
 		action := driverutil.FixAction{
-			Name:    act.String(),
-			Pkg:     act.Package.Types,
-			Files:   act.Package.Syntax,
-			FileSet: act.Package.Fset,
-			ReadFileFunc: func(filename string) ([]byte, error) {
-				return os.ReadFile(filename)
-			},
-			Diagnostics: act.Diagnostics,
+			Name:         act.String(),
+			Pkg:          act.Package.Types,
+			Files:        act.Package.Syntax,
+			FileSet:      act.Package.Fset,
+			ReadFileFunc: readFile,
+			Diagnostics:  act.Diagnostics,
 		}
 		actions = append(actions, action)
 	}
