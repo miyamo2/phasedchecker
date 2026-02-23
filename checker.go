@@ -53,16 +53,20 @@ type Config struct {
 	DiagnosticPolicy DiagnosticPolicy
 }
 
-// Run executes the full pipeline: load packages, run phases, apply fixes, and returns the exit code.
+// Main executes the full pipeline: load packages, run phases, apply fixes, and returns the exit code.
 //
 // Analyzer errors within a phase set exit code 1 but do not halt the pipeline;
 // subsequent phases still execute. Only SeverityCritical diagnostics cause immediate termination.
-func Run(cfg Config) (int, error) {
+func Main(cfg Config) {
 	args, err := parseArgs(os.Args[0], os.Args[1:])
 	if err != nil {
-		return 1, fmt.Errorf("parsing arguments: %w", err)
+		log.Printf("Error parsing arguments: %v", err)
 	}
-	return run(cfg, args)
+	exitCode, err := run(cfg, args)
+	if err != nil {
+		log.Printf("Error: %v", err)
+	}
+	os.Exit(exitCode)
 }
 
 // run is the internal entry point that accepts pre-parsed arguments.

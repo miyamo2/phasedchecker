@@ -26,7 +26,7 @@ make sync-x-tools
 
 ### Core (root package `phasedchecker`)
 
-- **`checker.go`** — Main entry point. `Run()` parses CLI args, loads packages, and executes the pipeline. Each `Phase` runs `checker.Analyze()` on its analyzers, processes diagnostics by severity, optionally applies fixes, then calls the `AfterPhase` callback. Exit codes: 0=clean, 1=error/critical, 3=warnings only (no fix mode). In JSON mode (`-json`), exit is always 0 (diagnostics are emitted as JSON to stdout) unless a Critical diagnostic triggers early termination.
+- **`checker.go`** — Main entry point. `Main()` parses CLI args, loads packages, and executes the pipeline. Each `Phase` runs `checker.Analyze()` on its analyzers, processes diagnostics by severity, optionally applies fixes, then calls the `AfterPhase` callback. Exit codes: 0=clean, 1=error/critical, 3=warnings only (no fix mode). In JSON mode (`-json`), exit is always 0 (diagnostics are emitted as JSON to stdout) unless a Critical diagnostic triggers early termination.
 - **`severity.go`** — Severity levels (`SeverityInfo`, `SeverityWarn`, `SeverityError`, `SeverityCritical`) and `DiagnosticPolicy` (category-to-severity rules with first-match-wins semantics and a default). These types are in the root package, not a separate `severity/` package.
 - **`flags.go`** — CLI argument parsing (`-fix`, `-diff`, `-json`, `-test`, `-debug`). Debug flags are a subset of `"fpstv"`: `f`=fact logging, `p`=sequential (no parallelism), `s`=sanity check, `t`=timing, `v`=verbose.
 - **`fix.go`** — Fix application via vendored `driverutil.ApplyFixes()`. Uses `reflect` + `unsafe` to extract the unexported `pass` field from `checker.Action` — this couples tightly to the `checker.Action` struct layout in `x/tools`.
