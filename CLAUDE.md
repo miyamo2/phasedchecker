@@ -26,23 +26,16 @@ make sync-x-tools
 
 ### Core (root package `phasedchecker`)
 
-- **`checker.go`** — Main entry point. `Run()` parses CLI args, loads packages, and executes the pipeline. Each `Phase` runs `checker.Analyze()` on its analyzers, processes diagnostics by severity, optionally applies fixes, then calls the `AfterPhase` callback. Exit codes: 0=clean, 1=error/critical, 3=warnings only (no fix mode).
-- **`flags.go`** — CLI argument parsing (`-fix`, `-diff`, `-v`, package patterns).
-- **`fix.go`** — Fix application via vendored `driverutil.ApplyFixes()`.
+- **`checker.go`** — Main entry point. `Run()` parses CLI args, loads packages, and executes the pipeline. Each `Phase` runs `checker.Analyze()` on its analyzers, processes diagnostics by severity, optionally applies fixes, then calls the `AfterPhase` callback. Exit codes: 0=clean, 1=error/critical, 3=warnings only (no fix mode). In JSON mode (`-json`), exit is always 0 (diagnostics are emitted as JSON to stdout) unless a Critical diagnostic triggers early termination.
+- **`severity.go`** — Severity levels (`SeverityInfo`, `SeverityWarn`, `SeverityError`, `SeverityCritical`) and `DiagnosticPolicy` (category-to-severity rules with first-match-wins semantics and a default). These types are in the root package, not a separate `severity/` package.
+- **`flags.go`** — CLI argument parsing (`-fix`, `-diff`, `-json`, `-test`, `-debug`). Debug flags are a subset of `"fpstv"`: `f`=fact logging, `p`=sequential (no parallelism), `s`=sanity check, `t`=timing, `v`=verbose.
+- **`fix.go`** — Fix application via vendored `driverutil.ApplyFixes()`. Uses `reflect` + `unsafe` to extract the unexported `pass` field from `checker.Action` — this couples tightly to the `checker.Action` struct layout in `x/tools`.
 
 ### Key Types
 
 - `Phase` — name + analyzers + optional `AfterPhase` callback receiving `*checker.Graph`
 - `Pipeline` — ordered sequence of `Phase`s
 - `Config` — pipeline + `DiagnosticPolicy` for severity mapping
-
-### `config/` package
-
-Mirror types (`Phase`, `Pipeline`, `Config`) used by `checkertest` to avoid circular imports. The `checkertest` package accepts `config.Config`, not root `Config`.
-
-### `severity/` package
-
-Defines `Severity` levels (Debug, Info, Warn, Error, Critical) and `DiagnosticPolicy` (category-to-severity rules with first-match-wins semantics and a default).
 
 ### `checkertest/` package
 
@@ -61,4 +54,4 @@ Copies of `golang.org/x/tools` internal packages (`diff`, `driverutil`, `free`) 
 
 - Go 1.25 required
 - Tests use `setupTestModule()` to create temporary Go modules with specific source files
-- The `checkertest` package uses `config.Config` (not root `Config`) to break import cycles
+- `checkertest` uses `phasedchecker.Config` directly (no intermediate config package)
