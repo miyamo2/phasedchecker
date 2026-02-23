@@ -18,6 +18,9 @@ go test -run TestName ./...
 # Run tests for a specific package
 go test ./checkertest/...
 
+# Run example tests (each example has its own go.mod)
+cd .examples/basic && go test -v ./...
+
 # Sync vendored x/tools internal packages (after updating x/tools version in go.mod)
 make sync-x-tools
 ```
@@ -26,8 +29,8 @@ make sync-x-tools
 
 ### Core (root package `phasedchecker`)
 
-- **`checker.go`** — Main entry point. `Main()` parses CLI args, loads packages, and executes the pipeline. Each `Phase` runs `checker.Analyze()` on its analyzers, processes diagnostics by severity, optionally applies fixes, then calls the `AfterPhase` callback. Exit codes: 0=clean, 1=error/critical, 3=warnings only (no fix mode). In JSON mode (`-json`), exit is always 0 (diagnostics are emitted as JSON to stdout) unless a Critical diagnostic triggers early termination.
-- **`severity.go`** — Severity levels (`SeverityInfo`, `SeverityWarn`, `SeverityError`, `SeverityCritical`) and `DiagnosticPolicy` (category-to-severity rules with first-match-wins semantics and a default). These types are in the root package, not a separate `severity/` package.
+- **`checker.go`** — Main entry point. `Main()` parses CLI args, loads packages via `packages.LoadSyntax | packages.NeedModule`, and executes the pipeline. Each `Phase` runs `checker.Analyze()` on its analyzers, processes diagnostics by severity, optionally applies fixes, then calls the `AfterPhase` callback.
+- **`severity.go`** — Severity levels and `DiagnosticPolicy` (category-to-severity rules with first-match-wins semantics and a default). Types are in the root package, not a separate sub-package. Severity iota values have reserved gaps for future levels (debug, notice, fatal, emergency).
 - **`flags.go`** — CLI argument parsing (`-fix`, `-diff`, `-json`, `-test`, `-debug`, `-V`). Debug flags are a subset of `"fpstv"`: `f`=fact logging, `p`=sequential (no parallelism), `s`=sanity check, `t`=timing, `v`=verbose. The `-V=full` flag implements the `go vet` version protocol (prints executable name + SHA256 hash).
 - **`fix.go`** — Fix application via vendored `driverutil.ApplyFixes()`. Uses `reflect` + `unsafe` to extract the unexported `pass` field from `checker.Action` — this couples tightly to the `checker.Action` struct layout in `x/tools`.
 
@@ -37,18 +40,37 @@ make sync-x-tools
 - `Pipeline` — ordered sequence of `Phase`s
 - `Config` — pipeline + `DiagnosticPolicy` for severity mapping
 
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Clean, or JSON mode (unless Critical) |
+| 1 | Error/Critical diagnostics or internal error |
+| 3 | Warnings only (no fix mode) |
+
+`SeverityCritical` aborts the pipeline during the current phase, skipping all subsequent phases.
+
 ### `checkertest/` package
 
 Testing framework analogous to `analysistest`, but for phase-based pipelines:
 - `Run()` — runs pipeline and verifies `// want` directives in source
 - `RunWithSuggestedFixes()` — additionally checks `.golden` files (plain or txtar archive format)
-- `expect.go` — parses `// want "regex"` and `// want +N "regex"` comment directives
+- `expect.go` — parses `// want "regex"`, `// want "a" "b"` (multiple), and `// want +N "regex"` (line offset) comment directives. Fact expectations (`name:"pattern"`) are explicitly rejected — phasedchecker does not use analysis facts.
 - `golden.go` — golden file comparison with diff/merge support
 - `internal/testing.go` — minimal `T` interface to enable unit testing of the test framework itself
+
+`collectExpectations` only scans root packages (not transitive dependencies like stdlib) to avoid false matches from unrelated `// want` comments in third-party source.
 
 ### `internal/x/tools/` — Vendored internals
 
 Copies of `golang.org/x/tools` internal packages (`diff`, `driverutil`, `free`) with rewritten import paths. Managed by `make sync-x-tools`. Do not edit these files directly.
+
+### `.examples/` — Runnable examples
+
+Three examples (`basic`, `severity`, `multiphase`), each with its own `go.mod` using `replace` directive pointing to `../..`. Each has:
+- `main.go` — checker implementation using `phasedchecker.Main()`
+- `target/` — sample Go source for `go run . ./target/...`
+- `testdata/` + `main_test.go` — demonstrates `checkertest.Run()` usage
 
 ## Conventions
 

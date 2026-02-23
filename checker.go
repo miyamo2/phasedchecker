@@ -84,7 +84,7 @@ func run(cfg Config, args *argument) (int, error) {
 		log.Printf("load %s", args.Patterns)
 	}
 
-	pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadAllSyntax, Tests: args.Test}, args.Patterns...)
+	pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadSyntax | packages.NeedModule, Tests: args.Test}, args.Patterns...)
 	if err != nil {
 		return 1, fmt.Errorf("loading packages: %w", err)
 	}
