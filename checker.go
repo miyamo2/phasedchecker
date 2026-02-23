@@ -20,6 +20,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/checker"
 	"golang.org/x/tools/go/packages"
+
+	"github.com/miyamo2/phasedchecker/internal/x/tools/driverutil"
 )
 
 // Phase represents a group of analyzers that run together.
@@ -165,9 +167,11 @@ func run(cfg Config, args *argument) (int, error) {
 				total += act.Duration
 			}
 		}
-		sort.Slice(list, func(i, j int) bool {
-			return list[i].Duration > list[j].Duration
-		})
+		sort.Slice(
+			list, func(i, j int) bool {
+				return list[i].Duration > list[j].Duration
+			},
+		)
 		var sum time.Duration
 		for _, act := range list {
 			fmt.Fprintf(os.Stderr, "%s\t%s\n", act.Duration, act)
@@ -179,6 +183,23 @@ func run(cfg Config, args *argument) (int, error) {
 		if total > sum {
 			fmt.Fprintf(os.Stderr, "%s\tall others\n", total-sum)
 		}
+	}
+
+	if !args.Fix && args.JSON {
+		tree := make(driverutil.JSONTree)
+		for _, r := range results {
+			for act := range r.graph.All() {
+				var diags []analysis.Diagnostic
+				if act.IsRoot {
+					diags = act.Diagnostics
+				}
+				tree.Add(act.Package.Fset, act.Package.ID, act.Analyzer.Name, diags, act.Err)
+			}
+		}
+		if err := tree.Print(os.Stdout); err != nil {
+			return 1, fmt.Errorf("printing JSON diagnostics: %w", err)
+		}
+		return 0, nil
 	}
 
 	for _, r := range results {

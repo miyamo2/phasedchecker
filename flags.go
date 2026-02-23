@@ -13,6 +13,8 @@ type argument struct {
 	Fix bool
 	// PrintDiff, when used with Fix, prints unified diffs instead of updating files.
 	PrintDiff bool
+	// JSON enables JSON output of diagnostics to stdout.
+	JSON bool
 	// Debug holds debug flags, any subset of "fpstv".
 	Debug string
 	// Patterns are the package patterns to analyze (e.g., "./...").
@@ -31,10 +33,12 @@ func parseArgs(programName string, args []string) (*argument, error) {
 	var (
 		fix       bool
 		printDiff bool
+		jsonMode  bool
 		debug     string
 	)
 	fs.BoolVar(&fix, "fix", false, "apply suggested fixes")
 	fs.BoolVar(&printDiff, "diff", false, "with -fix, don't update the files, but print a unified diff")
+	fs.BoolVar(&jsonMode, "json", false, "emit JSON output to stdout")
 	fs.StringVar(&debug, "debug", "", `debug flags, any subset of "fpstv"`)
 
 	if err := fs.Parse(args); err != nil {
@@ -49,6 +53,7 @@ func parseArgs(programName string, args []string) (*argument, error) {
 	return &argument{
 		Fix:       fix,
 		PrintDiff: printDiff,
+		JSON:      jsonMode,
 		Debug:     debug,
 		Patterns:  patterns,
 	}, nil

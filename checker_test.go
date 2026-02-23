@@ -1,8 +1,10 @@
 package phasedchecker
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/ast"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -770,5 +772,172 @@ func Test_resolveSeverity(t *testing.T) {
 				}
 			},
 		)
+	}
+}
+
+func Test_run_JSON_ExitCodes(t *testing.T) {
+	dir := setupTestModule(
+		t, map[string]string{
+			"main.go": minimalMain,
+		},
+	)
+	t.Chdir(dir)
+
+	tests := []struct {
+		name     string
+		cfg      Config
+		wantCode int
+	}{
+		{
+			name: "no diagnostics",
+			cfg: Config{
+				Pipeline: Pipeline{
+					Phases: []Phase{
+						{
+							Name:      "test",
+							Analyzers: []*analysis.Analyzer{noopAnalyzer},
+						},
+					},
+				},
+			},
+			wantCode: 0,
+		},
+		{
+			name: "warn diagnostics exit 0",
+			cfg: Config{
+				Pipeline: Pipeline{
+					Phases: []Phase{
+						{
+							Name:      "test",
+							Analyzers: []*analysis.Analyzer{newDiagAnalyzer("warn")},
+						},
+					},
+				},
+				DiagnosticPolicy: DiagnosticPolicy{
+					Rules: []CategoryRule{{Category: "warn", Severity: SeverityWarn}},
+				},
+			},
+			wantCode: 0,
+		},
+		{
+			name: "analyzer error exit 0",
+			cfg: Config{
+				Pipeline: Pipeline{
+					Phases: []Phase{
+						{
+							Name:      "test",
+							Analyzers: []*analysis.Analyzer{failAnalyzer},
+						},
+					},
+				},
+			},
+			wantCode: 0,
+		},
+		{
+			name: "multiple phases exit 0",
+			cfg: Config{
+				Pipeline: Pipeline{
+					Phases: []Phase{
+						{
+							Name:      "phase1",
+							Analyzers: []*analysis.Analyzer{newDiagAnalyzer("warn")},
+						},
+						{
+							Name:      "phase2",
+							Analyzers: []*analysis.Analyzer{failAnalyzer},
+						},
+					},
+				},
+				DiagnosticPolicy: DiagnosticPolicy{
+					Rules: []CategoryRule{{Category: "warn", Severity: SeverityWarn}},
+				},
+			},
+			wantCode: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(
+			tt.name, func(t *testing.T) {
+				// Capture stdout to verify JSON output.
+				origStdout := os.Stdout
+				r, w, err := os.Pipe()
+				if err != nil {
+					t.Fatal(err)
+				}
+				os.Stdout = w
+
+				code, runErr := run(tt.cfg, &argument{JSON: true, Patterns: []string{"./..."}})
+
+				w.Close()
+				os.Stdout = origStdout
+
+				output, err := io.ReadAll(r)
+				if err != nil {
+					t.Fatal(err)
+				}
+				r.Close()
+
+				if runErr != nil {
+					t.Fatalf("unexpected error: %v", runErr)
+				}
+				if code != tt.wantCode {
+					t.Errorf("exit code = %d, want %d", code, tt.wantCode)
+				}
+
+				// Verify output is valid JSON.
+				if !json.Valid(output) {
+					t.Errorf("output is not valid JSON:\n%s", output)
+				}
+			},
+		)
+	}
+}
+
+func Test_run_JSON_FixTakesPrecedence(t *testing.T) {
+	dir := setupTestModule(
+		t, map[string]string{
+			"main.go": `package main
+
+var bar = 1
+
+func main() {
+	_ = bar
+}
+`,
+		},
+	)
+	t.Chdir(dir)
+
+	cfg := Config{
+		Pipeline: Pipeline{
+			Phases: []Phase{
+				{
+					Name:      "test",
+					Analyzers: []*analysis.Analyzer{renameAnalyzer},
+				},
+			},
+		},
+	}
+
+	// When both -fix and -json are set, -fix takes precedence (no JSON output).
+	code, err := run(cfg, &argument{Fix: true, JSON: true, Patterns: []string{"./..."}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+
+	// Verify that the fix was actually applied.
+	content, err := os.ReadFile(filepath.Join(dir, "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(content), "bar") {
+		t.Errorf("file still contains 'bar' after fix:\n%s", content)
+	}
+	if !strings.Contains(string(content), "baz") {
+		t.Errorf("file does not contain 'baz' after fix:\n%s", content)
 	}
 }

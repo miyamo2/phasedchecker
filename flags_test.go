@@ -12,6 +12,7 @@ func Test_parseArgs(t *testing.T) {
 		args      []string
 		wantFix   bool
 		wantDiff  bool
+		wantJSON  bool
 		wantDebug string
 		wantPats  []string
 		wantErr   string
@@ -68,6 +69,19 @@ func Test_parseArgs(t *testing.T) {
 			wantErr: "no packages specified",
 		},
 		{
+			name:     "json flag",
+			args:     []string{"-json", "./..."},
+			wantJSON: true,
+			wantPats: []string{"./..."},
+		},
+		{
+			name:     "json and fix both set",
+			args:     []string{"-json", "-fix", "./..."},
+			wantJSON: true,
+			wantFix:  true,
+			wantPats: []string{"./..."},
+		},
+		{
 			name:    "unknown flag",
 			args:    []string{"-unknown", "./..."},
 			wantErr: "flag provided but not defined",
@@ -96,6 +110,9 @@ func Test_parseArgs(t *testing.T) {
 				}
 				if args.PrintDiff != tt.wantDiff {
 					t.Errorf("PrintDiff = %v, want %v", args.PrintDiff, tt.wantDiff)
+				}
+				if args.JSON != tt.wantJSON {
+					t.Errorf("JSON = %v, want %v", args.JSON, tt.wantJSON)
 				}
 				if args.Debug != tt.wantDebug {
 					t.Errorf("Debug = %q, want %q", args.Debug, tt.wantDebug)
