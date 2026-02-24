@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/miyamo2/phasedchecker/internal/arg"
+	"github.com/miyamo2/phasedchecker/internal/testutil"
 	"golang.org/x/tools/go/analysis"
 	gochecker "golang.org/x/tools/go/analysis/checker"
 )
@@ -93,28 +94,6 @@ var renameAnalyzer = &analysis.Analyzer{
 
 // --- Helpers ---
 
-func setupTestModule(t *testing.T, files map[string]string) string {
-	t.Helper()
-	dir := t.TempDir()
-
-	gomod := "module example.com/test\n\ngo 1.25\n"
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	for name, content := range files {
-		path := filepath.Join(dir, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	return dir
-}
-
 const minimalMain = `package main
 
 func main() {}
@@ -147,7 +126,7 @@ func Test_run_NilArgs(t *testing.T) {
 }
 
 func Test_run_ExitCodes(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -331,7 +310,7 @@ func Test_run_ExitCodes(t *testing.T) {
 }
 
 func Test_run_MultiPhase(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -375,7 +354,7 @@ func Test_run_MultiPhase(t *testing.T) {
 }
 
 func Test_run_AfterPhaseError(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -406,7 +385,7 @@ func Test_run_AfterPhaseError(t *testing.T) {
 }
 
 func Test_run_MultiPhase_ErrorStopsEarly(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -450,7 +429,7 @@ func Test_run_MultiPhase_ErrorStopsEarly(t *testing.T) {
 }
 
 func Test_run_NonRootActionsSkipped(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -508,7 +487,7 @@ func Test_run_NonRootActionsSkipped(t *testing.T) {
 }
 
 func Test_run_DiagAccumulation_AcrossPhases(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -543,7 +522,7 @@ func Test_run_DiagAccumulation_AcrossPhases(t *testing.T) {
 }
 
 func Test_run_FixApplication(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": `package main
 
@@ -597,7 +576,7 @@ func main() {
 	_ = bar
 }
 `
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": src,
 		},
@@ -633,7 +612,7 @@ func main() {
 }
 
 func Test_run_Sequential(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -661,7 +640,7 @@ func Test_run_Sequential(t *testing.T) {
 }
 
 func Test_run_PackageLoadError(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -689,7 +668,7 @@ func Test_run_PackageLoadError(t *testing.T) {
 }
 
 func Test_run_JSON_ExitCodes(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -834,7 +813,7 @@ func Test_run_TestFlag(t *testing.T) {
 		},
 	}
 
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 			"main_test.go": `package main
@@ -879,7 +858,7 @@ var testOnly = 1
 }
 
 func Test_run_JSON_FixTakesPrecedence(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": `package main
 
