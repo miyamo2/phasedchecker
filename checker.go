@@ -17,6 +17,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/miyamo2/phasedchecker/internal/runner"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/checker"
 	"golang.org/x/tools/go/packages"
@@ -84,7 +85,10 @@ func run(cfg Config, args *argument) (int, error) {
 		log.Printf("load %s", args.Patterns)
 	}
 
-	pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadSyntax | packages.NeedModule, Tests: args.Test}, args.Patterns...)
+	pkgs, err := packages.Load(
+		&packages.Config{Mode: packages.LoadSyntax | packages.NeedModule, Tests: args.Test},
+		args.Patterns...,
+	)
 	if err != nil {
 		return 1, fmt.Errorf("loading packages: %w", err)
 	}
@@ -138,7 +142,7 @@ func run(cfg Config, args *argument) (int, error) {
 				continue
 			}
 			for _, d := range act.Diagnostics {
-				sv := resolveSeverity(d.Category, cfg.DiagnosticPolicy)
+				sv := runner.ResolveSeverity(d.Category, cfg.DiagnosticPolicy)
 				switch sv {
 				case SeverityCritical:
 					return 1, fmt.Errorf("critical diagnostic: %s", d.Message)
@@ -223,14 +227,4 @@ func run(cfg Config, args *argument) (int, error) {
 		return 3, nil
 	}
 	return 0, nil
-}
-
-// resolveSeverity finds the severity for a given category.
-func resolveSeverity(category string, policy DiagnosticPolicy) Severity {
-	for _, rule := range policy.Rules {
-		if rule.Category == category {
-			return rule.Severity
-		}
-	}
-	return policy.DefaultSeverity
 }

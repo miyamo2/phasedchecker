@@ -12,6 +12,8 @@ import (
 
 	"github.com/miyamo2/phasedchecker"
 	"github.com/miyamo2/phasedchecker/checkertest/internal"
+	"github.com/miyamo2/phasedchecker/internal/runner"
+	"github.com/miyamo2/phasedchecker/internal/severity"
 	gochecker "golang.org/x/tools/go/analysis/checker"
 	"golang.org/x/tools/go/packages"
 )
@@ -70,6 +72,14 @@ func runPipeline(t internal.T, dir string, cfg phasedchecker.Config, checkGolden
 		// Match diagnostics against expectations.
 		matchDiagnostics(t, graph, wants)
 
+		// SeverityCritical aborts the pipeline: add the result (so tests can
+		// inspect diagnostics) but skip AfterPhase and golden graphs, then
+		// stop executing subsequent phases.
+		if containsCritical(graph, cfg.DiagnosticPolicy) {
+			results = append(results, &Result{Phase: phase.Name, Graph: graph})
+			break
+		}
+
 		results = append(
 			results, &Result{
 				Phase: phase.Name,
@@ -116,12 +126,28 @@ func matchDiagnostics(
 	}
 }
 
+// containsCritical reports whether any root diagnostic in the graph resolves
+// to SeverityCritical under the given policy.
+func containsCritical(graph *gochecker.Graph, policy severity.DiagnosticPolicy) bool {
+	for act := range graph.All() {
+		if act.Err != nil || !act.IsRoot {
+			continue
+		}
+		for _, d := range act.Diagnostics {
+			if runner.ResolveSeverity(d.Category, policy) == severity.SeverityCritical {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // loadPackages loads Go packages from the given directory.
 func loadPackages(t internal.T, dir string, patterns []string) []*packages.Package {
 	t.Helper()
 
 	cfg := &packages.Config{
-		Mode: packages.LoadSyntax | packages.NeedModule,
+		Mode:  packages.LoadSyntax | packages.NeedModule,
 		Dir:   dir,
 		Tests: true,
 	}
