@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/miyamo2/phasedchecker/internal/testutil"
 	"golang.org/x/tools/go/analysis"
 	gochecker "golang.org/x/tools/go/analysis/checker"
 	"golang.org/x/tools/go/packages"
@@ -24,7 +25,7 @@ func loadTestPackages(t *testing.T, dir string) []*packages.Package {
 }
 
 func Test_applyFixes_NoFixes(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -42,7 +43,7 @@ func Test_applyFixes_NoFixes(t *testing.T) {
 }
 
 func Test_applyFixes_WithFixes(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": `package main
 
@@ -86,7 +87,7 @@ func main() {
 	_ = bar
 }
 `
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": src,
 		},
@@ -112,7 +113,7 @@ func main() {
 }
 
 func Test_applyFixes_PreservesPermissions(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": `package main
 

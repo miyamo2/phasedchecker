@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/miyamo2/phasedchecker/internal/arg"
+	"github.com/miyamo2/phasedchecker/internal/testutil"
 	"golang.org/x/tools/go/analysis"
 	gochecker "golang.org/x/tools/go/analysis/checker"
 )
@@ -92,28 +94,6 @@ var renameAnalyzer = &analysis.Analyzer{
 
 // --- Helpers ---
 
-func setupTestModule(t *testing.T, files map[string]string) string {
-	t.Helper()
-	dir := t.TempDir()
-
-	gomod := "module example.com/test\n\ngo 1.25\n"
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	for name, content := range files {
-		path := filepath.Join(dir, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	return dir
-}
-
 const minimalMain = `package main
 
 func main() {}
@@ -123,7 +103,7 @@ func main() {}
 
 func Test_run_EmptyPipeline(t *testing.T) {
 	code, err := run(
-		Config{}, &argument{
+		Config{}, &arg.Argument{
 			Patterns: []string{"./..."},
 		},
 	)
@@ -146,7 +126,7 @@ func Test_run_NilArgs(t *testing.T) {
 }
 
 func Test_run_ExitCodes(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -156,7 +136,7 @@ func Test_run_ExitCodes(t *testing.T) {
 	tests := []struct {
 		name       string
 		cfg        Config
-		args       *argument
+		args       *arg.Argument
 		wantCode   int
 		wantErr    bool
 		wantErrMsg string
@@ -174,7 +154,7 @@ func Test_run_ExitCodes(t *testing.T) {
 				},
 				DiagnosticPolicy: DiagnosticPolicy{DefaultSeverity: SeverityInfo},
 			},
-			args:     &argument{Patterns: []string{"./..."}},
+			args:     &arg.Argument{Patterns: []string{"./..."}},
 			wantCode: 0,
 		},
 		{
@@ -189,7 +169,7 @@ func Test_run_ExitCodes(t *testing.T) {
 					},
 				},
 			},
-			args:     &argument{Patterns: []string{"./..."}},
+			args:     &arg.Argument{Patterns: []string{"./..."}},
 			wantCode: 1,
 		},
 		{
@@ -207,7 +187,7 @@ func Test_run_ExitCodes(t *testing.T) {
 					Rules: []CategoryRule{{Category: "err", Severity: SeverityError}},
 				},
 			},
-			args:     &argument{Patterns: []string{"./..."}},
+			args:     &arg.Argument{Patterns: []string{"./..."}},
 			wantCode: 1,
 		},
 		{
@@ -225,7 +205,7 @@ func Test_run_ExitCodes(t *testing.T) {
 					Rules: []CategoryRule{{Category: "warn", Severity: SeverityWarn}},
 				},
 			},
-			args:     &argument{Patterns: []string{"./..."}},
+			args:     &arg.Argument{Patterns: []string{"./..."}},
 			wantCode: 3,
 		},
 		{
@@ -241,7 +221,7 @@ func Test_run_ExitCodes(t *testing.T) {
 				},
 				DiagnosticPolicy: DiagnosticPolicy{DefaultSeverity: SeverityInfo},
 			},
-			args:     &argument{Patterns: []string{"./..."}},
+			args:     &arg.Argument{Patterns: []string{"./..."}},
 			wantCode: 0,
 		},
 		{
@@ -259,7 +239,7 @@ func Test_run_ExitCodes(t *testing.T) {
 					Rules: []CategoryRule{{Category: "warn", Severity: SeverityWarn}},
 				},
 			},
-			args:     &argument{Fix: true, Patterns: []string{"./..."}},
+			args:     &arg.Argument{Fix: true, Patterns: []string{"./..."}},
 			wantCode: 0,
 		},
 		{
@@ -283,7 +263,7 @@ func Test_run_ExitCodes(t *testing.T) {
 					},
 				},
 			},
-			args:     &argument{Patterns: []string{"./..."}},
+			args:     &arg.Argument{Patterns: []string{"./..."}},
 			wantCode: 1,
 		},
 		{
@@ -301,7 +281,7 @@ func Test_run_ExitCodes(t *testing.T) {
 					Rules: []CategoryRule{{Category: "crit", Severity: SeverityCritical}},
 				},
 			},
-			args:       &argument{Patterns: []string{"./..."}},
+			args:       &arg.Argument{Patterns: []string{"./..."}},
 			wantCode:   1,
 			wantErr:    true,
 			wantErrMsg: "critical diagnostic",
@@ -330,7 +310,7 @@ func Test_run_ExitCodes(t *testing.T) {
 }
 
 func Test_run_MultiPhase(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -361,7 +341,7 @@ func Test_run_MultiPhase(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -374,7 +354,7 @@ func Test_run_MultiPhase(t *testing.T) {
 }
 
 func Test_run_AfterPhaseError(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -395,7 +375,7 @@ func Test_run_AfterPhaseError(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Patterns: []string{"./..."}})
 	if code != 1 {
 		t.Errorf("exit code = %d, want 1", code)
 	}
@@ -405,7 +385,7 @@ func Test_run_AfterPhaseError(t *testing.T) {
 }
 
 func Test_run_MultiPhase_ErrorStopsEarly(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -436,7 +416,7 @@ func Test_run_MultiPhase_ErrorStopsEarly(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Patterns: []string{"./..."}})
 	if code != 1 {
 		t.Errorf("exit code = %d, want 1", code)
 	}
@@ -449,7 +429,7 @@ func Test_run_MultiPhase_ErrorStopsEarly(t *testing.T) {
 }
 
 func Test_run_NonRootActionsSkipped(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -497,7 +477,7 @@ func Test_run_NonRootActionsSkipped(t *testing.T) {
 
 	// depAnalyzer reports a diagnostic, but it's non-root so should be skipped.
 	// If it weren't skipped, the exit code would be 1 (Error).
-	code, err := run(cfg, &argument{Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -507,7 +487,7 @@ func Test_run_NonRootActionsSkipped(t *testing.T) {
 }
 
 func Test_run_DiagAccumulation_AcrossPhases(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -532,7 +512,7 @@ func Test_run_DiagAccumulation_AcrossPhases(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -542,7 +522,7 @@ func Test_run_DiagAccumulation_AcrossPhases(t *testing.T) {
 }
 
 func Test_run_FixApplication(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": `package main
 
@@ -567,7 +547,7 @@ func main() {
 		},
 	}
 
-	code, err := run(cfg, &argument{Fix: true, Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Fix: true, Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -596,7 +576,7 @@ func main() {
 	_ = bar
 }
 `
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": src,
 		},
@@ -614,7 +594,7 @@ func main() {
 		},
 	}
 
-	code, err := run(cfg, &argument{Fix: true, PrintDiff: true, Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Fix: true, PrintDiff: true, Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -632,7 +612,7 @@ func main() {
 }
 
 func Test_run_Sequential(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -650,7 +630,7 @@ func Test_run_Sequential(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Debug: "p", Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Debug: "p", Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -660,7 +640,7 @@ func Test_run_Sequential(t *testing.T) {
 }
 
 func Test_run_PackageLoadError(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -678,7 +658,7 @@ func Test_run_PackageLoadError(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Patterns: []string{"./nonexistent"}})
+	code, err := run(cfg, &arg.Argument{Patterns: []string{"./nonexistent"}})
 	if code != 1 {
 		t.Errorf("exit code = %d, want 1", code)
 	}
@@ -687,96 +667,8 @@ func Test_run_PackageLoadError(t *testing.T) {
 	}
 }
 
-func Test_resolveSeverity(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name     string
-		policy   DiagnosticPolicy
-		category string
-		want     Severity
-	}{
-		{
-			name:     "no rules returns DefaultSeverity",
-			policy:   DiagnosticPolicy{DefaultSeverity: SeverityInfo},
-			category: "anything",
-			want:     SeverityInfo,
-		},
-		{
-			name: "unmatched category returns DefaultSeverity",
-			policy: DiagnosticPolicy{
-				Rules:           []CategoryRule{{Category: "other", Severity: SeverityError}},
-				DefaultSeverity: SeverityWarn,
-			},
-			category: "nomatch",
-			want:     SeverityWarn,
-		},
-		{
-			name: "exact match returns Error",
-			policy: DiagnosticPolicy{
-				Rules: []CategoryRule{{Category: "err", Severity: SeverityError}},
-			},
-			category: "err",
-			want:     SeverityError,
-		},
-		{
-			name: "exact match returns Warn",
-			policy: DiagnosticPolicy{
-				Rules: []CategoryRule{{Category: "warn", Severity: SeverityWarn}},
-			},
-			category: "warn",
-			want:     SeverityWarn,
-		},
-		{
-			name: "exact match returns Info",
-			policy: DiagnosticPolicy{
-				Rules:           []CategoryRule{{Category: "info", Severity: SeverityInfo}},
-				DefaultSeverity: SeverityError,
-			},
-			category: "info",
-			want:     SeverityInfo,
-		},
-		{
-			name: "first matching rule wins",
-			policy: DiagnosticPolicy{
-				Rules: []CategoryRule{
-					{Category: "cat", Severity: SeverityWarn},
-					{Category: "cat", Severity: SeverityError},
-				},
-			},
-			category: "cat",
-			want:     SeverityWarn,
-		},
-		{
-			name: "empty category matches",
-			policy: DiagnosticPolicy{
-				Rules:           []CategoryRule{{Category: "", Severity: SeverityError}},
-				DefaultSeverity: SeverityInfo,
-			},
-			category: "",
-			want:     SeverityError,
-		},
-		{
-			name:     "zero value Policy returns SeverityInfo",
-			policy:   DiagnosticPolicy{},
-			category: "anything",
-			want:     SeverityInfo,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				t.Parallel()
-				got := resolveSeverity(tt.category, tt.policy)
-				if got != tt.want {
-					t.Errorf("resolveSeverity(%q) = %d, want %d", tt.category, got, tt.want)
-				}
-			},
-		)
-	}
-}
-
 func Test_run_JSON_ExitCodes(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 		},
@@ -867,7 +759,7 @@ func Test_run_JSON_ExitCodes(t *testing.T) {
 				}
 				os.Stdout = w
 
-				code, runErr := run(tt.cfg, &argument{JSON: true, Patterns: []string{"./..."}})
+				code, runErr := run(tt.cfg, &arg.Argument{JSON: true, Patterns: []string{"./..."}})
 
 				w.Close()
 				os.Stdout = origStdout
@@ -921,7 +813,7 @@ func Test_run_TestFlag(t *testing.T) {
 		},
 	}
 
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": minimalMain,
 			"main_test.go": `package main
@@ -947,7 +839,7 @@ var testOnly = 1
 	}
 
 	// With Test: true (default), test files are loaded and diagnostic is found.
-	code, err := run(cfg, &argument{Test: true, Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Test: true, Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("Test=true: unexpected error: %v", err)
 	}
@@ -956,7 +848,7 @@ var testOnly = 1
 	}
 
 	// With Test: false, test files are excluded and no diagnostic is found.
-	code, err = run(cfg, &argument{Test: false, Patterns: []string{"./..."}})
+	code, err = run(cfg, &arg.Argument{Test: false, Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("Test=false: unexpected error: %v", err)
 	}
@@ -966,7 +858,7 @@ var testOnly = 1
 }
 
 func Test_run_JSON_FixTakesPrecedence(t *testing.T) {
-	dir := setupTestModule(
+	dir := testutil.SetupTestModule(
 		t, map[string]string{
 			"main.go": `package main
 
@@ -992,7 +884,7 @@ func main() {
 	}
 
 	// When both -fix and -json are set, -fix takes precedence (no JSON output).
-	code, err := run(cfg, &argument{Fix: true, JSON: true, Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Fix: true, JSON: true, Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

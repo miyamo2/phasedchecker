@@ -12,8 +12,8 @@ import (
 
 	"github.com/miyamo2/phasedchecker"
 	"github.com/miyamo2/phasedchecker/checkertest/internal"
+	"github.com/miyamo2/phasedchecker/internal/runner"
 	gochecker "golang.org/x/tools/go/analysis/checker"
-	"golang.org/x/tools/go/packages"
 )
 
 // Result holds the result of executing a single phase.
@@ -46,7 +46,10 @@ func runPipeline(t internal.T, dir string, cfg phasedchecker.Config, checkGolden
 		t.Fatal("pipeline has no phases")
 	}
 
-	pkgs := loadPackages(t, dir, patterns)
+	pkgs, err := runner.LoadPackages(dir, true, patterns)
+	if err != nil {
+		t.Fatalf("loading packages: %v", err)
+	}
 
 	// Collect // want expectations from source files.
 	wants := collectExpectations(t, pkgs)
@@ -58,40 +61,38 @@ func runPipeline(t internal.T, dir string, cfg phasedchecker.Config, checkGolden
 		gf.capture(pkgs)
 	}
 
-	var results []*Result
-	var graphs []*gochecker.Graph
+	var (
+		results []*Result
+		graphs  []*gochecker.Graph
+		aborted bool
+	)
 
-	for _, phase := range cfg.Pipeline.Phases {
-		graph, err := gochecker.Analyze(phase.Analyzers, pkgs, nil)
+	defer func() {
+		// Report unmatched expectations.
+		reportUnmatched(t, wants)
+
+		// Compare golden files if requested.
+		if !aborted && checkGolden {
+			compareGolden(t, graphs, gf)
+		}
+	}()
+
+	for pr, err := range runner.RunPipeline(cfg, pkgs, nil) {
+		if pr != nil {
+			matchDiagnostics(t, pr.Graph, wants)
+			results = append(results, &Result{Phase: pr.Phase, Graph: pr.Graph})
+			graphs = append(graphs, pr.Graph)
+		}
 		if err != nil {
-			t.Fatalf("phase %q: %v", phase.Name, err)
-		}
-
-		// Match diagnostics against expectations.
-		matchDiagnostics(t, graph, wants)
-
-		results = append(
-			results, &Result{
-				Phase: phase.Name,
-				Graph: graph,
-			},
-		)
-		graphs = append(graphs, graph)
-
-		// Run AfterPhase callback.
-		if phase.AfterPhase != nil {
-			if err := phase.AfterPhase(graph); err != nil {
-				t.Fatalf("phase %q after-phase callback: %v", phase.Name, err)
+			aborted = true
+			switch {
+			case errors.Is(err, runner.ErrAfterPhase):
+				t.Fatal(err)
+			case !errors.Is(err, runner.ErrCriticalDiagnostic):
+				t.Fatal(err)
 			}
+			break
 		}
-	}
-
-	// Report unmatched expectations.
-	reportUnmatched(t, wants)
-
-	// Compare golden files if requested.
-	if checkGolden {
-		compareGolden(t, graphs, gf)
 	}
 
 	return results
@@ -114,34 +115,4 @@ func matchDiagnostics(
 			checkDiagnostics(t, wants, posn, d.Message)
 		}
 	}
-}
-
-// loadPackages loads Go packages from the given directory.
-func loadPackages(t internal.T, dir string, patterns []string) []*packages.Package {
-	t.Helper()
-
-	cfg := &packages.Config{
-		Mode: packages.LoadSyntax | packages.NeedModule,
-		Dir:   dir,
-		Tests: true,
-	}
-
-	pkgs, err := packages.Load(cfg, patterns...)
-	if err != nil {
-		t.Fatalf("loading packages: %v", err)
-	}
-
-	var loadErrors []error
-	packages.Visit(
-		pkgs, nil, func(pkg *packages.Package) {
-			for _, err := range pkg.Errors {
-				loadErrors = append(loadErrors, err)
-			}
-		},
-	)
-	if len(loadErrors) > 0 {
-		t.Fatalf("package loading errors: %v", errors.Join(loadErrors...))
-	}
-
-	return pkgs
 }

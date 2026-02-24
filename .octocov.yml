@@ -3,6 +3,8 @@ coverage:
   acceptable: 70%
   exclude:
     - 'github.com/miyamo2/phasedchecker/internal/x/**/*'
+    - 'github.com/miyamo2/phasedchecker/.examples/**/*'
+    - 'github.com/miyamo2/phasedchecker/internal/testutil/**/*'
   paths:
     - 'coverage.out'
   badge:
@@ -13,9 +15,11 @@ codeToTestRatio:
     - '!internal/x/**/*.go'
     - '!.examples/**/*.go'
     - '!**/*_test.go'
+    - '!internal/testutil/**/*.go'
   test:
     - '**/*_test.go'
     - '!.examples/**/*_test.go'
+    - '!internal/testutil/**/*_test.go'
   badge:
     path: .assets/ratio.svg
 testExecutionTime:

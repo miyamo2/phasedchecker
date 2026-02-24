@@ -10,6 +10,7 @@ import (
 
 	"github.com/miyamo2/phasedchecker"
 	"golang.org/x/tools/go/analysis"
+	gochecker "golang.org/x/tools/go/analysis/checker"
 )
 
 // --- Test analyzers ---
@@ -251,6 +252,150 @@ func TestRunWithSuggestedFixes_Golden(t *testing.T) {
 
 	if len(results) != 1 {
 		t.Fatalf("got %d results, want 1", len(results))
+	}
+}
+
+// criticalDiagAnalyzer reports a diagnostic with category "crit" on var declarations.
+var criticalDiagAnalyzer = &analysis.Analyzer{
+	Name: "critdiag",
+	Doc:  "reports a diagnostic with category crit on var declarations",
+	Run: func(pass *analysis.Pass) (any, error) {
+		for _, f := range pass.Files {
+			ast.Inspect(
+				f, func(n ast.Node) bool {
+					spec, ok := n.(*ast.ValueSpec)
+					if !ok {
+						return true
+					}
+					for _, name := range spec.Names {
+						pass.Report(
+							analysis.Diagnostic{
+								Pos:      name.Pos(),
+								Message:  "test diagnostic",
+								Category: "crit",
+							},
+						)
+					}
+					return true
+				},
+			)
+		}
+		return nil, nil
+	},
+}
+
+func TestRun_SeverityCritical_SkipsSubsequentPhases(t *testing.T) {
+	dir := filepath.Join(testdataDir(), "critical")
+
+	var afterPhaseCalled []string
+	cfg := phasedchecker.Config{
+		Pipeline: phasedchecker.Pipeline{
+			Phases: []phasedchecker.Phase{
+				{
+					Name:      "phase1",
+					Analyzers: []*analysis.Analyzer{criticalDiagAnalyzer},
+					AfterPhase: func(_ *gochecker.Graph) error {
+						afterPhaseCalled = append(afterPhaseCalled, "phase1")
+						return nil
+					},
+				},
+				{
+					Name:      "phase2",
+					Analyzers: []*analysis.Analyzer{diagAnalyzer},
+					AfterPhase: func(_ *gochecker.Graph) error {
+						afterPhaseCalled = append(afterPhaseCalled, "phase2")
+						return nil
+					},
+				},
+			},
+		},
+		DiagnosticPolicy: phasedchecker.DiagnosticPolicy{
+			Rules: []phasedchecker.CategoryRule{
+				{Category: "crit", Severity: phasedchecker.SeverityCritical},
+			},
+		},
+	}
+
+	results := Run(t, dir, cfg, "./...")
+
+	// Only phase1 should produce a result; phase2 should be skipped.
+	if len(results) != 1 {
+		t.Fatalf("got %d results, want 1", len(results))
+	}
+	if results[0].Phase != "phase1" {
+		t.Errorf("phase = %q, want %q", results[0].Phase, "phase1")
+	}
+
+	// AfterPhase should NOT be called for the critical phase (nor for skipped phases).
+	if len(afterPhaseCalled) != 0 {
+		t.Errorf("afterPhaseCalled = %v, want empty (critical phase should skip AfterPhase)", afterPhaseCalled)
+	}
+}
+
+func TestRun_SeverityCritical_DiagnosticsMatch(t *testing.T) {
+	dir := filepath.Join(testdataDir(), "critical")
+
+	cfg := phasedchecker.Config{
+		Pipeline: phasedchecker.Pipeline{
+			Phases: []phasedchecker.Phase{
+				{
+					Name:      "test",
+					Analyzers: []*analysis.Analyzer{criticalDiagAnalyzer},
+				},
+			},
+		},
+		DiagnosticPolicy: phasedchecker.DiagnosticPolicy{
+			Rules: []phasedchecker.CategoryRule{
+				{Category: "crit", Severity: phasedchecker.SeverityCritical},
+			},
+		},
+	}
+
+	// The // want "test diagnostic" directive in critical/main.go should match
+	// even though the diagnostic is SeverityCritical.
+	results := Run(t, dir, cfg, "./...")
+
+	if len(results) != 1 {
+		t.Fatalf("got %d results, want 1", len(results))
+	}
+}
+
+func TestRunWithSuggestedFixes_CriticalSkipsPriorPhaseGolden(t *testing.T) {
+	dir := filepath.Join(testdataDir(), "critical_with_fixes")
+
+	cfg := phasedchecker.Config{
+		Pipeline: phasedchecker.Pipeline{
+			Phases: []phasedchecker.Phase{
+				{
+					Name:      "rename-phase",
+					Analyzers: []*analysis.Analyzer{renameAnalyzer},
+				},
+				{
+					Name:      "critical-phase",
+					Analyzers: []*analysis.Analyzer{criticalDiagAnalyzer},
+				},
+			},
+		},
+		DiagnosticPolicy: phasedchecker.DiagnosticPolicy{
+			Rules: []phasedchecker.CategoryRule{
+				{Category: "crit", Severity: phasedchecker.SeverityCritical},
+			},
+		},
+	}
+
+	// RunWithSuggestedFixes should NOT attempt golden comparison for the
+	// rename-phase (no .golden file exists). This matches production behavior
+	// where Critical aborts the entire pipeline and no fixes are applied.
+	results := RunWithSuggestedFixes(t, dir, cfg, "./...")
+
+	if len(results) != 2 {
+		t.Fatalf("got %d results, want 2 (rename-phase + critical-phase)", len(results))
+	}
+	if results[0].Phase != "rename-phase" {
+		t.Errorf("results[0].Phase = %q, want %q", results[0].Phase, "rename-phase")
+	}
+	if results[1].Phase != "critical-phase" {
+		t.Errorf("results[1].Phase = %q, want %q", results[1].Phase, "critical-phase")
 	}
 }
 
