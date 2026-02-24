@@ -27,18 +27,33 @@ make sync-x-tools
 
 ## Architecture
 
+### Layering
+
+The root package (`phasedchecker`) is a thin public API layer that re-exports types from internal packages as type aliases:
+- `Phase`, `Pipeline`, `Config` → `internal/runner`
+- `Severity`, `CategoryRule`, `DiagnosticPolicy` → `internal/severity`
+
+The actual implementation lives in `internal/` sub-packages.
+
 ### Core (root package `phasedchecker`)
 
-- **`checker.go`** — Main entry point. `Main()` parses CLI args, loads packages via `packages.LoadSyntax | packages.NeedModule`, and executes the pipeline. Each `Phase` runs `checker.Analyze()` on its analyzers, processes diagnostics by severity, optionally applies fixes, then calls the `AfterPhase` callback.
-- **`severity.go`** — Severity levels and `DiagnosticPolicy` (category-to-severity rules with first-match-wins semantics and a default). Types are in the root package, not a separate sub-package. Severity iota values have reserved gaps for future levels (debug, notice, fatal, emergency).
-- **`flags.go`** — CLI argument parsing (`-fix`, `-diff`, `-json`, `-test`, `-debug`, `-V`). Debug flags are a subset of `"fpstv"`: `f`=fact logging, `p`=sequential (no parallelism), `s`=sanity check, `t`=timing, `v`=verbose. The `-V=full` flag implements the `go vet` version protocol (prints executable name + SHA256 hash).
+- **`checker.go`** — `Main()` parses CLI args via `arg.ParseArgs()`, then delegates to internal `run()`. `run()` loads packages via `runner.LoadPackages()`, iterates `runner.RunPipeline()`, processes diagnostics by severity, optionally applies fixes, then returns the exit code. Handles JSON output via `driverutil.JSONTree` and timing output for the slowest 90% of analyzers.
+- **`severity.go`** — Type aliases re-exporting severity types from `internal/severity`. Severity iota values have reserved gaps for future levels (debug, notice, fatal, emergency) — do not renumber.
 - **`fix.go`** — Fix application via vendored `driverutil.ApplyFixes()`. Uses `reflect` + `unsafe` to extract the unexported `pass` field from `checker.Action` — this couples tightly to the `checker.Action` struct layout in `x/tools`.
 
-### Key Types
+### `internal/runner/` — Pipeline Execution Engine
 
-- `Phase` — name + analyzers + optional `AfterPhase` callback receiving `*checker.Graph`
-- `Pipeline` — ordered sequence of `Phase`s
-- `Config` — pipeline + `DiagnosticPolicy` for severity mapping
+- **`types.go`** — `Phase` (name + analyzers + optional `AfterPhase` callback), `Pipeline` (ordered phases), `Config` (pipeline + `DiagnosticPolicy`), `PhaseResult` (per-phase result with `Graph`, `HasError`, `HasWarn`)
+- **`pipeline.go`** — `LoadPackages()` loads packages via `packages.Load()`. `RunPipeline()` returns a Go iterator (`iter.Seq2[*PhaseResult, error]`) that yields results per phase. On `SeverityCritical`, yields `ErrCriticalDiagnostic` and stops. On `AfterPhase` error, yields `ErrAfterPhase` and stops.
+- **`resolve.go`** — `ResolveSeverity()` maps diagnostic category to severity via first-match-wins linear search through `DiagnosticPolicy.Rules`.
+
+### `internal/arg/` — CLI Argument Parsing
+
+- **`flags.go`** — `ParseArgs()` parses CLI flags (`-fix`, `-diff`, `-json`, `-test`, `-debug`, `-V`). `Argument` struct holds parsed results. `Dbg(b byte) bool` checks individual debug flags. Debug flags are a subset of `"fpstv"`: `f`=fact logging, `p`=sequential (no parallelism), `s`=sanity check, `t`=timing, `v`=verbose. The `-V=full` flag implements the `go vet` version protocol.
+
+### `internal/testutil/` — Shared Test Utilities
+
+- **`module.go`** — `SetupTestModule()` creates a temporary Go module directory with auto-generated `go.mod` and given files.
 
 ### Exit Codes
 
@@ -75,7 +90,7 @@ Three examples (`basic`, `severity`, `multiphase`), each with its own `go.mod` u
 ## Conventions
 
 - Go 1.25 required
-- Tests use `setupTestModule()` to create temporary Go modules, then `t.Chdir(dir)` to switch to the temp directory before calling `run()`
+- Tests use `testutil.SetupTestModule()` to create temporary Go modules, then `t.Chdir(dir)` to switch to the temp directory before calling `run()`
 - `checkertest` uses `phasedchecker.Config` directly (no intermediate config package)
 - `Severity` iota has intentional gaps (reserved values for future debug/notice/fatal/emergency levels) — do not renumber
 - Coverage threshold is 70% (`.octocov.yml`). `internal/x/tools/` and `.examples/` are excluded from coverage and code-to-test ratio metrics
