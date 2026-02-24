@@ -61,10 +61,10 @@ func LoadPackages(dir string, test bool, patterns []string) ([]*packages.Package
 // callback is NOT invoked and subsequent phases are skipped).
 //
 // For non-critical phases the AfterPhase callback runs before the result is
-// yielded. If AfterPhase returns an error, a nil result and the wrapped error
-// are yielded and iteration stops (the phase result is NOT yielded).
+// yielded. If AfterPhase returns an error, the result and the wrapped error
+// are yielded together and iteration stops.
 // If the caller breaks out of the loop, the AfterPhase callback for the
-// current phase is skipped.
+// current phase has already been invoked.
 //
 // The opts parameter is passed through to [checker.Analyze]; production callers
 // set SanityCheck/Sequential/FactLog while checkertest passes nil.

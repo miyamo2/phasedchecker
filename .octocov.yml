@@ -18,6 +18,8 @@ codeToTestRatio:
     - '!internal/testutil/**/*.go'
   test:
     - '**/*_test.go'
+    - '!.examples/**/*_test.go'
+    - '!internal/testutil/**/*_test.go'
   badge:
     path: .assets/ratio.svg
 testExecutionTime:

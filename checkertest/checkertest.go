@@ -85,7 +85,10 @@ func runPipeline(t internal.T, dir string, cfg phasedchecker.Config, checkGolden
 		}
 		if err != nil {
 			aborted = true
-			if errors.Is(err, runner.ErrAfterPhase) {
+			switch {
+			case errors.Is(err, runner.ErrAfterPhase):
+				t.Fatal(err)
+			case !errors.Is(err, runner.ErrCriticalDiagnostic):
 				t.Fatal(err)
 			}
 			break
