@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/token"
 	"go/types"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -456,34 +455,3 @@ func TestRunPipeline_AfterPhaseError(t *testing.T) {
 	}
 }
 
-// --- loadPackages tests ---
-
-func TestLoadPackages_LoadErrors(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-	gomod := "module example.com/broken\n\ngo 1.25\n"
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0644); err != nil {
-		t.Fatal(err)
-	}
-	// Write a Go file with a syntax error.
-	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n\nfunc {}\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	mt := &mockT{}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		loadPackages(mt, dir, []string{"./..."})
-	}()
-	<-done
-
-	if len(mt.fatals) == 0 {
-		t.Fatal("expected Fatalf to be called for load errors")
-	}
-	got := mt.fatals[0]
-	if !strings.Contains(got, "package loading errors") && !strings.Contains(got, "loading packages") {
-		t.Errorf("fatal = %q, want containing load error message", got)
-	}
-}

@@ -7,15 +7,12 @@
 package checkertest
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/miyamo2/phasedchecker"
 	"github.com/miyamo2/phasedchecker/checkertest/internal"
 	"github.com/miyamo2/phasedchecker/internal/runner"
-	"github.com/miyamo2/phasedchecker/internal/severity"
 	gochecker "golang.org/x/tools/go/analysis/checker"
-	"golang.org/x/tools/go/packages"
 )
 
 // Result holds the result of executing a single phase.
@@ -48,7 +45,10 @@ func runPipeline(t internal.T, dir string, cfg phasedchecker.Config, checkGolden
 		t.Fatal("pipeline has no phases")
 	}
 
-	pkgs := loadPackages(t, dir, patterns)
+	pkgs, err := runner.LoadPackages(dir, true, patterns)
+	if err != nil {
+		t.Fatalf("loading packages: %v", err)
+	}
 
 	// Collect // want expectations from source files.
 	wants := collectExpectations(t, pkgs)
@@ -63,36 +63,22 @@ func runPipeline(t internal.T, dir string, cfg phasedchecker.Config, checkGolden
 	var results []*Result
 	var graphs []*gochecker.Graph
 
-	for _, phase := range cfg.Pipeline.Phases {
-		graph, err := gochecker.Analyze(phase.Analyzers, pkgs, nil)
-		if err != nil {
-			t.Fatalf("phase %q: %v", phase.Name, err)
-		}
-
-		// Match diagnostics against expectations.
-		matchDiagnostics(t, graph, wants)
-
-		// SeverityCritical aborts the pipeline: add the result (so tests can
-		// inspect diagnostics) but skip AfterPhase and golden graphs, then
-		// stop executing subsequent phases.
-		if containsCritical(graph, cfg.DiagnosticPolicy) {
-			results = append(results, &Result{Phase: phase.Name, Graph: graph})
-			break
-		}
-
-		results = append(
-			results, &Result{
-				Phase: phase.Name,
-				Graph: graph,
-			},
-		)
-		graphs = append(graphs, graph)
-
-		// Run AfterPhase callback.
-		if phase.AfterPhase != nil {
-			if err := phase.AfterPhase(graph); err != nil {
-				t.Fatalf("phase %q after-phase callback: %v", phase.Name, err)
+	for pr, err := range runner.RunPipeline(cfg, pkgs, nil) {
+		if pr != nil {
+			matchDiagnostics(t, pr.Graph, wants)
+			results = append(results, &Result{Phase: pr.Phase, Graph: pr.Graph})
+			if err == nil {
+				// Non-critical phases contribute to golden file comparison.
+				graphs = append(graphs, pr.Graph)
 			}
+		}
+		if err != nil {
+			if pr == nil {
+				// Analyze or AfterPhase error without a result.
+				t.Fatalf("%v", err)
+			}
+			// SeverityCritical: result was added above; stop pipeline.
+			break
 		}
 	}
 
@@ -126,48 +112,4 @@ func matchDiagnostics(
 	}
 }
 
-// containsCritical reports whether any root diagnostic in the graph resolves
-// to SeverityCritical under the given policy.
-func containsCritical(graph *gochecker.Graph, policy severity.DiagnosticPolicy) bool {
-	for act := range graph.All() {
-		if act.Err != nil || !act.IsRoot {
-			continue
-		}
-		for _, d := range act.Diagnostics {
-			if runner.ResolveSeverity(d.Category, policy) == severity.SeverityCritical {
-				return true
-			}
-		}
-	}
-	return false
-}
 
-// loadPackages loads Go packages from the given directory.
-func loadPackages(t internal.T, dir string, patterns []string) []*packages.Package {
-	t.Helper()
-
-	cfg := &packages.Config{
-		Mode:  packages.LoadSyntax | packages.NeedModule,
-		Dir:   dir,
-		Tests: true,
-	}
-
-	pkgs, err := packages.Load(cfg, patterns...)
-	if err != nil {
-		t.Fatalf("loading packages: %v", err)
-	}
-
-	var loadErrors []error
-	packages.Visit(
-		pkgs, nil, func(pkg *packages.Package) {
-			for _, err := range pkg.Errors {
-				loadErrors = append(loadErrors, err)
-			}
-		},
-	)
-	if len(loadErrors) > 0 {
-		t.Fatalf("package loading errors: %v", errors.Join(loadErrors...))
-	}
-
-	return pkgs
-}
