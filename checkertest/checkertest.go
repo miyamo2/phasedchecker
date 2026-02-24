@@ -7,6 +7,7 @@
 package checkertest
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/miyamo2/phasedchecker"
@@ -60,34 +61,35 @@ func runPipeline(t internal.T, dir string, cfg phasedchecker.Config, checkGolden
 		gf.capture(pkgs)
 	}
 
-	var results []*Result
-	var graphs []*gochecker.Graph
+	var (
+		results []*Result
+		graphs  []*gochecker.Graph
+		aborted bool
+	)
+
+	defer func() {
+		// Report unmatched expectations.
+		reportUnmatched(t, wants)
+
+		// Compare golden files if requested.
+		if !aborted && checkGolden {
+			compareGolden(t, graphs, gf)
+		}
+	}()
 
 	for pr, err := range runner.RunPipeline(cfg, pkgs, nil) {
 		if pr != nil {
 			matchDiagnostics(t, pr.Graph, wants)
 			results = append(results, &Result{Phase: pr.Phase, Graph: pr.Graph})
-			if err == nil {
-				// Non-critical phases contribute to golden file comparison.
-				graphs = append(graphs, pr.Graph)
-			}
+			graphs = append(graphs, pr.Graph)
 		}
 		if err != nil {
-			if pr == nil {
-				// Analyze or AfterPhase error without a result.
-				t.Fatalf("%v", err)
+			aborted = true
+			if errors.Is(err, runner.ErrAfterPhase) {
+				t.Fatal(err)
 			}
-			// SeverityCritical: result was added above; stop pipeline.
 			break
 		}
-	}
-
-	// Report unmatched expectations.
-	reportUnmatched(t, wants)
-
-	// Compare golden files if requested.
-	if checkGolden {
-		compareGolden(t, graphs, gf)
 	}
 
 	return results
@@ -111,5 +113,3 @@ func matchDiagnostics(
 		}
 	}
 }
-
-

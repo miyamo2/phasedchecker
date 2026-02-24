@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/miyamo2/phasedchecker"
+	"github.com/miyamo2/phasedchecker/internal/runner"
 	"github.com/miyamo2/phasedchecker/internal/x/tools/diff"
 	"golang.org/x/tools/go/analysis"
 	gochecker "golang.org/x/tools/go/analysis/checker"
@@ -432,7 +433,7 @@ func TestRunPipeline_AfterPhaseError(t *testing.T) {
 					Name:      "phase1",
 					Analyzers: []*analysis.Analyzer{noopAnalyzer},
 					AfterPhase: func(_ *gochecker.Graph) error {
-						return fmt.Errorf("after-phase callback error")
+						return fmt.Errorf("something")
 					},
 				},
 			},
@@ -450,8 +451,7 @@ func TestRunPipeline_AfterPhaseError(t *testing.T) {
 	if len(mt.fatals) == 0 {
 		t.Fatal("expected Fatalf to be called, but it was not")
 	}
-	if !strings.Contains(mt.fatals[0], "after-phase callback") {
-		t.Errorf("fatal = %q, want containing %q", mt.fatals[0], "after-phase callback")
+	if !strings.Contains(mt.fatals[0], runner.ErrAfterPhase.Error()) {
+		t.Errorf("fatal = %q, want containing %q", mt.fatals[0], runner.ErrAfterPhase.Error())
 	}
 }
-

@@ -10,6 +10,11 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+var (
+	ErrCriticalDiagnostic = errors.New("critical diagnostic")
+	ErrAfterPhase         = errors.New("after-phase callback error")
+)
+
 // LoadPackages loads Go packages from the given directory using the specified patterns.
 // When dir is non-empty it is set as the working directory for the package loader;
 // production callers pass "" so that the current working directory is used,
@@ -84,7 +89,13 @@ func RunPipeline(cfg Config, pkgs []*packages.Package, opts *checker.Options) it
 					sv := ResolveSeverity(d.Category, cfg.DiagnosticPolicy)
 					switch sv {
 					case severity.SeverityCritical:
-						yield(result, fmt.Errorf("critical diagnostic: %s", d.Message))
+						yield(
+							result,
+							errors.Join(
+								ErrCriticalDiagnostic,
+								fmt.Errorf("phase %q: %s", phase.Name, d.Message),
+							),
+						)
 						return
 					case severity.SeverityError:
 						result.HasError = true
@@ -95,7 +106,7 @@ func RunPipeline(cfg Config, pkgs []*packages.Package, opts *checker.Options) it
 			}
 			if phase.AfterPhase != nil {
 				if err := phase.AfterPhase(graph); err != nil {
-					yield(nil, fmt.Errorf("phase %q after-phase callback: %w", phase.Name, err))
+					yield(result, errors.Join(ErrAfterPhase, fmt.Errorf("phase %q: %w", phase.Name, err)))
 					return
 				}
 			}

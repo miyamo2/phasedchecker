@@ -360,6 +360,45 @@ func TestRun_SeverityCritical_DiagnosticsMatch(t *testing.T) {
 	}
 }
 
+func TestRunWithSuggestedFixes_CriticalSkipsPriorPhaseGolden(t *testing.T) {
+	dir := filepath.Join(testdataDir(), "critical_with_fixes")
+
+	cfg := phasedchecker.Config{
+		Pipeline: phasedchecker.Pipeline{
+			Phases: []phasedchecker.Phase{
+				{
+					Name:      "rename-phase",
+					Analyzers: []*analysis.Analyzer{renameAnalyzer},
+				},
+				{
+					Name:      "critical-phase",
+					Analyzers: []*analysis.Analyzer{criticalDiagAnalyzer},
+				},
+			},
+		},
+		DiagnosticPolicy: phasedchecker.DiagnosticPolicy{
+			Rules: []phasedchecker.CategoryRule{
+				{Category: "crit", Severity: phasedchecker.SeverityCritical},
+			},
+		},
+	}
+
+	// RunWithSuggestedFixes should NOT attempt golden comparison for the
+	// rename-phase (no .golden file exists). This matches production behavior
+	// where Critical aborts the entire pipeline and no fixes are applied.
+	results := RunWithSuggestedFixes(t, dir, cfg, "./...")
+
+	if len(results) != 2 {
+		t.Fatalf("got %d results, want 2 (rename-phase + critical-phase)", len(results))
+	}
+	if results[0].Phase != "rename-phase" {
+		t.Errorf("results[0].Phase = %q, want %q", results[0].Phase, "rename-phase")
+	}
+	if results[1].Phase != "critical-phase" {
+		t.Errorf("results[1].Phase = %q, want %q", results[1].Phase, "critical-phase")
+	}
+}
+
 func TestRun_AnalyzerError(t *testing.T) {
 	dir := filepath.Join(testdataDir(), "noexpect")
 
