@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/miyamo2/phasedchecker/internal/arg"
 	"golang.org/x/tools/go/analysis"
 	gochecker "golang.org/x/tools/go/analysis/checker"
 )
@@ -123,7 +124,7 @@ func main() {}
 
 func Test_run_EmptyPipeline(t *testing.T) {
 	code, err := run(
-		Config{}, &argument{
+		Config{}, &arg.Argument{
 			Patterns: []string{"./..."},
 		},
 	)
@@ -156,7 +157,7 @@ func Test_run_ExitCodes(t *testing.T) {
 	tests := []struct {
 		name       string
 		cfg        Config
-		args       *argument
+		args       *arg.Argument
 		wantCode   int
 		wantErr    bool
 		wantErrMsg string
@@ -174,7 +175,7 @@ func Test_run_ExitCodes(t *testing.T) {
 				},
 				DiagnosticPolicy: DiagnosticPolicy{DefaultSeverity: SeverityInfo},
 			},
-			args:     &argument{Patterns: []string{"./..."}},
+			args:     &arg.Argument{Patterns: []string{"./..."}},
 			wantCode: 0,
 		},
 		{
@@ -189,7 +190,7 @@ func Test_run_ExitCodes(t *testing.T) {
 					},
 				},
 			},
-			args:     &argument{Patterns: []string{"./..."}},
+			args:     &arg.Argument{Patterns: []string{"./..."}},
 			wantCode: 1,
 		},
 		{
@@ -207,7 +208,7 @@ func Test_run_ExitCodes(t *testing.T) {
 					Rules: []CategoryRule{{Category: "err", Severity: SeverityError}},
 				},
 			},
-			args:     &argument{Patterns: []string{"./..."}},
+			args:     &arg.Argument{Patterns: []string{"./..."}},
 			wantCode: 1,
 		},
 		{
@@ -225,7 +226,7 @@ func Test_run_ExitCodes(t *testing.T) {
 					Rules: []CategoryRule{{Category: "warn", Severity: SeverityWarn}},
 				},
 			},
-			args:     &argument{Patterns: []string{"./..."}},
+			args:     &arg.Argument{Patterns: []string{"./..."}},
 			wantCode: 3,
 		},
 		{
@@ -241,7 +242,7 @@ func Test_run_ExitCodes(t *testing.T) {
 				},
 				DiagnosticPolicy: DiagnosticPolicy{DefaultSeverity: SeverityInfo},
 			},
-			args:     &argument{Patterns: []string{"./..."}},
+			args:     &arg.Argument{Patterns: []string{"./..."}},
 			wantCode: 0,
 		},
 		{
@@ -259,7 +260,7 @@ func Test_run_ExitCodes(t *testing.T) {
 					Rules: []CategoryRule{{Category: "warn", Severity: SeverityWarn}},
 				},
 			},
-			args:     &argument{Fix: true, Patterns: []string{"./..."}},
+			args:     &arg.Argument{Fix: true, Patterns: []string{"./..."}},
 			wantCode: 0,
 		},
 		{
@@ -283,7 +284,7 @@ func Test_run_ExitCodes(t *testing.T) {
 					},
 				},
 			},
-			args:     &argument{Patterns: []string{"./..."}},
+			args:     &arg.Argument{Patterns: []string{"./..."}},
 			wantCode: 1,
 		},
 		{
@@ -301,7 +302,7 @@ func Test_run_ExitCodes(t *testing.T) {
 					Rules: []CategoryRule{{Category: "crit", Severity: SeverityCritical}},
 				},
 			},
-			args:       &argument{Patterns: []string{"./..."}},
+			args:       &arg.Argument{Patterns: []string{"./..."}},
 			wantCode:   1,
 			wantErr:    true,
 			wantErrMsg: "critical diagnostic",
@@ -361,7 +362,7 @@ func Test_run_MultiPhase(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -395,7 +396,7 @@ func Test_run_AfterPhaseError(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Patterns: []string{"./..."}})
 	if code != 1 {
 		t.Errorf("exit code = %d, want 1", code)
 	}
@@ -436,7 +437,7 @@ func Test_run_MultiPhase_ErrorStopsEarly(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Patterns: []string{"./..."}})
 	if code != 1 {
 		t.Errorf("exit code = %d, want 1", code)
 	}
@@ -497,7 +498,7 @@ func Test_run_NonRootActionsSkipped(t *testing.T) {
 
 	// depAnalyzer reports a diagnostic, but it's non-root so should be skipped.
 	// If it weren't skipped, the exit code would be 1 (Error).
-	code, err := run(cfg, &argument{Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -532,7 +533,7 @@ func Test_run_DiagAccumulation_AcrossPhases(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -567,7 +568,7 @@ func main() {
 		},
 	}
 
-	code, err := run(cfg, &argument{Fix: true, Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Fix: true, Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -614,7 +615,7 @@ func main() {
 		},
 	}
 
-	code, err := run(cfg, &argument{Fix: true, PrintDiff: true, Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Fix: true, PrintDiff: true, Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -650,7 +651,7 @@ func Test_run_Sequential(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Debug: "p", Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Debug: "p", Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -678,7 +679,7 @@ func Test_run_PackageLoadError(t *testing.T) {
 		},
 	}
 
-	code, err := run(cfg, &argument{Patterns: []string{"./nonexistent"}})
+	code, err := run(cfg, &arg.Argument{Patterns: []string{"./nonexistent"}})
 	if code != 1 {
 		t.Errorf("exit code = %d, want 1", code)
 	}
@@ -779,7 +780,7 @@ func Test_run_JSON_ExitCodes(t *testing.T) {
 				}
 				os.Stdout = w
 
-				code, runErr := run(tt.cfg, &argument{JSON: true, Patterns: []string{"./..."}})
+				code, runErr := run(tt.cfg, &arg.Argument{JSON: true, Patterns: []string{"./..."}})
 
 				w.Close()
 				os.Stdout = origStdout
@@ -859,7 +860,7 @@ var testOnly = 1
 	}
 
 	// With Test: true (default), test files are loaded and diagnostic is found.
-	code, err := run(cfg, &argument{Test: true, Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Test: true, Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("Test=true: unexpected error: %v", err)
 	}
@@ -868,7 +869,7 @@ var testOnly = 1
 	}
 
 	// With Test: false, test files are excluded and no diagnostic is found.
-	code, err = run(cfg, &argument{Test: false, Patterns: []string{"./..."}})
+	code, err = run(cfg, &arg.Argument{Test: false, Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("Test=false: unexpected error: %v", err)
 	}
@@ -904,7 +905,7 @@ func main() {
 	}
 
 	// When both -fix and -json are set, -fix takes precedence (no JSON output).
-	code, err := run(cfg, &argument{Fix: true, JSON: true, Patterns: []string{"./..."}})
+	code, err := run(cfg, &arg.Argument{Fix: true, JSON: true, Patterns: []string{"./..."}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

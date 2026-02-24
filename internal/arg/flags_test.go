@@ -1,4 +1,4 @@
-package phasedchecker
+package arg
 
 import (
 	"strings"
@@ -19,7 +19,7 @@ func Test_versionFlag(t *testing.T) {
 	}
 }
 
-func Test_parseArgs(t *testing.T) {
+func Test_ParseArgs(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name      string
@@ -122,7 +122,7 @@ func Test_parseArgs(t *testing.T) {
 		t.Run(
 			tt.name, func(t *testing.T) {
 				t.Parallel()
-				args, err := parseArgs("test", tt.args)
+				args, err := ParseArgs("test", tt.args)
 				if tt.wantErr != "" {
 					if err == nil {
 						t.Fatalf("expected error containing %q, got nil", tt.wantErr)

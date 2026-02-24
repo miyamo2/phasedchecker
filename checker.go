@@ -17,6 +17,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/miyamo2/phasedchecker/internal/arg"
 	"github.com/miyamo2/phasedchecker/internal/runner"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/checker"
@@ -59,7 +60,7 @@ type Config struct {
 // Analyzer errors within a phase set exit code 1 but do not halt the pipeline;
 // subsequent phases still execute. Only SeverityCritical diagnostics cause immediate termination.
 func Main(cfg Config) {
-	args, err := parseArgs(os.Args[0], os.Args[1:])
+	args, err := arg.ParseArgs(os.Args[0], os.Args[1:])
 	if err != nil {
 		log.Printf("Error parsing arguments: %v", err)
 	}
@@ -71,7 +72,7 @@ func Main(cfg Config) {
 }
 
 // run is the internal entry point that accepts pre-parsed arguments.
-func run(cfg Config, args *argument) (int, error) {
+func run(cfg Config, args *arg.Argument) (int, error) {
 	if args == nil {
 		return 1, fmt.Errorf("args cannot be nil")
 	}
@@ -79,7 +80,7 @@ func run(cfg Config, args *argument) (int, error) {
 		return 1, fmt.Errorf("pipeline has no phases")
 	}
 
-	if args.dbg('v') {
+	if args.Dbg('v') {
 		log.SetPrefix("")
 		log.SetFlags(log.Lmicroseconds)
 		log.Printf("load %s", args.Patterns)
@@ -106,7 +107,7 @@ func run(cfg Config, args *argument) (int, error) {
 	}
 
 	var factLog io.Writer
-	if args.dbg('f') {
+	if args.Dbg('f') {
 		factLog = os.Stderr
 	}
 
@@ -119,13 +120,13 @@ func run(cfg Config, args *argument) (int, error) {
 	hasError := false
 	hasDiagnostics := false
 	for _, phase := range cfg.Pipeline.Phases {
-		if args.dbg('v') {
+		if args.Dbg('v') {
 			log.Printf("phase %q: building graph of analysis passes", phase.Name)
 		}
 		graph, err := checker.Analyze(
 			phase.Analyzers, pkgs, &checker.Options{
-				SanityCheck: args.dbg('s'),
-				Sequential:  args.dbg('p'),
+				SanityCheck: args.Dbg('s'),
+				Sequential:  args.Dbg('p'),
 				FactLog:     factLog,
 			},
 		)
@@ -163,8 +164,8 @@ func run(cfg Config, args *argument) (int, error) {
 		}
 	}
 
-	if args.dbg('t') {
-		if !args.dbg('p') {
+	if args.Dbg('t') {
+		if !args.Dbg('p') {
 			log.Println("Warning: times are mostly GC/scheduler noise; use -debug=tp to disable parallelism")
 		}
 		var list []*checker.Action
@@ -212,7 +213,7 @@ func run(cfg Config, args *argument) (int, error) {
 
 	for _, r := range results {
 		if args.Fix {
-			if err := applyFixes(r.graph, args.PrintDiff, args.dbg('v')); err != nil {
+			if err := applyFixes(r.graph, args.PrintDiff, args.Dbg('v')); err != nil {
 				return 1, fmt.Errorf("applying fixes for phase %q: %w", r.name, err)
 			}
 		} else {

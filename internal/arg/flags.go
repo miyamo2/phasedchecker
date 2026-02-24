@@ -1,4 +1,4 @@
-package phasedchecker
+package arg
 
 import (
 	"crypto/sha256"
@@ -10,9 +10,9 @@ import (
 	"strings"
 )
 
-// argument holds the runtime arguments that control how the checker executes.
-// These are typically parsed from command-line flags via parseArgs.
-type argument struct {
+// Argument holds the runtime arguments that control how the checker executes.
+// These are typically parsed from command-line flags via ParseArgs.
+type Argument struct {
 	// Fix enables automatic application of SuggestedFixes.
 	Fix bool
 	// PrintDiff, when used with Fix, prints unified diffs instead of updating files.
@@ -27,8 +27,8 @@ type argument struct {
 	Patterns []string
 }
 
-// dbg reports whether the debug flag b is set.
-func (a *argument) dbg(b byte) bool {
+// Dbg reports whether the debug flag b is set.
+func (a *Argument) Dbg(b byte) bool {
 	return strings.IndexByte(a.Debug, b) >= 0
 }
 
@@ -55,14 +55,16 @@ func (versionFlag) Set(s string) error {
 		log.Fatal(err)
 	}
 	f.Close()
-	fmt.Printf("%s version devel comments-go-here buildID=%02x\n",
-		progname, string(h.Sum(nil)))
+	fmt.Printf(
+		"%s version devel comments-go-here buildID=%02x\n",
+		progname, string(h.Sum(nil)),
+	)
 	os.Exit(0)
 	return nil
 }
 
-// parseArgs parses command-line arguments and returns argument.
-func parseArgs(programName string, args []string) (*argument, error) {
+// ParseArgs parses command-line arguments and returns Argument.
+func ParseArgs(programName string, args []string) (*Argument, error) {
 	fs := flag.NewFlagSet(programName, flag.ContinueOnError)
 
 	var (
@@ -88,7 +90,7 @@ func parseArgs(programName string, args []string) (*argument, error) {
 		return nil, fmt.Errorf("no packages specified")
 	}
 
-	return &argument{
+	return &Argument{
 		Fix:       fix,
 		PrintDiff: printDiff,
 		JSON:      jsonMode,
