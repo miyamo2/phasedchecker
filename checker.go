@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/miyamo2/phasedchecker/internal/arg"
+	"github.com/miyamo2/phasedchecker/internal/help"
 	"github.com/miyamo2/phasedchecker/internal/runner"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/checker"
@@ -42,6 +43,10 @@ func Main(cfg Config) {
 	args, err := arg.ParseArgs(os.Args[0], os.Args[1:])
 	if err != nil {
 		log.Printf("Error parsing arguments: %v", err)
+	}
+	if args != nil && args.Help {
+		help.Help(os.Stdout, os.Args[0], cfg.Pipeline, args.HelpArgs)
+		os.Exit(0)
 	}
 	exitCode, err := run(cfg, args)
 	if err != nil {
