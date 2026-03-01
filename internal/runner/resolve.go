@@ -1,6 +1,8 @@
 package runner
 
 import (
+	"cmp"
+
 	"github.com/miyamo2/phasedchecker/internal/severity"
 )
 
@@ -14,8 +16,5 @@ func ResolveSeverity(category string, policy severity.DiagnosticPolicy) severity
 			break
 		}
 	}
-	if sv == severity.SeverityDefault {
-		return severity.SeverityWarn
-	}
-	return sv
+	return cmp.Or(sv, severity.SeverityWarn)
 }
