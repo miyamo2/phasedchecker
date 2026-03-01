@@ -79,10 +79,10 @@ func Test_ResolveSeverity(t *testing.T) {
 			want:     severity.SeverityError,
 		},
 		{
-			name:     "zero value Policy returns SeverityInfo",
+			name:     "zero value Policy returns SeverityWarn",
 			policy:   severity.DiagnosticPolicy{},
 			category: "anything",
-			want:     severity.SeverityInfo,
+			want:     severity.SeverityWarn,
 		},
 	}
 	for _, tt := range tests {

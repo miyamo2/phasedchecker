@@ -6,10 +6,13 @@ type Severity int
 const (
 	// _ reserves the iota value -1 for a potential debug severity level.
 	_ Severity = iota - 1
+	// SeverityDefault indicates not set.
+	// When resolved, it is treated as SeverityWarn.
+	SeverityDefault
 	// SeverityInfo indicates an informational diagnostic.
 	// Info diagnostics do not affect the exit code and are not reported.
 	SeverityInfo
-	// _ reserves the iota value 1 for a potential notice severity level.
+	// _ reserves the iota value 2 for a potential notice severity level.
 	_
 	// SeverityWarn indicates a warning diagnostic.
 	// Warn diagnostics are reported to stderr.
@@ -25,9 +28,9 @@ const (
 	// Critical diagnostics abort the pipeline during the current phase,
 	// skipping all subsequent phases and exiting with code 1.
 	SeverityCritical
-	// _ reserves the iota value 4 for a potential fatal severity level.
+	// _ reserves the iota value 6 for a potential fatal severity level.
 	_
-	// _ reserves the iota value 5 for a potential emergency severity level.
+	// _ reserves the iota value 7 for a potential emergency severity level.
 	_
 )
 
