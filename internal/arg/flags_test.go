@@ -22,15 +22,17 @@ func Test_versionFlag(t *testing.T) {
 func Test_ParseArgs(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name      string
-		args      []string
-		wantFix   bool
-		wantDiff  bool
-		wantJSON  bool
-		wantTest  bool
-		wantDebug string
-		wantPats  []string
-		wantErr   string
+		name         string
+		args         []string
+		wantFix      bool
+		wantDiff     bool
+		wantJSON     bool
+		wantTest     bool
+		wantDebug    string
+		wantPats     []string
+		wantHelp     bool
+		wantHelpArgs []string
+		wantErr      string
 	}{
 		{
 			name:     "basic pattern",
@@ -85,6 +87,43 @@ func Test_ParseArgs(t *testing.T) {
 			args:     []string{"pkg1", "pkg2"},
 			wantTest: true,
 			wantPats: []string{"pkg1", "pkg2"},
+		},
+		{
+			name:         "help only",
+			args:         []string{"help"},
+			wantTest:     true,
+			wantHelp:     true,
+			wantHelpArgs: []string{},
+		},
+		{
+			name:         "help phase scan",
+			args:         []string{"help", "phase", "scan"},
+			wantTest:     true,
+			wantHelp:     true,
+			wantHelpArgs: []string{"phase", "scan"},
+		},
+		{
+			name:         "help analyzer printf",
+			args:         []string{"help", "analyzer", "printf"},
+			wantTest:     true,
+			wantHelp:     true,
+			wantHelpArgs: []string{"analyzer", "printf"},
+		},
+		{
+			name:         "flag before help",
+			args:         []string{"-json", "help"},
+			wantJSON:     true,
+			wantTest:     true,
+			wantHelp:     true,
+			wantHelpArgs: []string{},
+		},
+		{
+			name:         "flag before help with args",
+			args:         []string{"-json", "help", "phase", "scan"},
+			wantJSON:     true,
+			wantTest:     true,
+			wantHelp:     true,
+			wantHelpArgs: []string{"phase", "scan"},
 		},
 		{
 			name:    "no packages",
@@ -150,6 +189,19 @@ func Test_ParseArgs(t *testing.T) {
 				}
 				if args.Debug != tt.wantDebug {
 					t.Errorf("Debug = %q, want %q", args.Debug, tt.wantDebug)
+				}
+				if args.Help != tt.wantHelp {
+					t.Errorf("Help = %v, want %v", args.Help, tt.wantHelp)
+				}
+				if tt.wantHelpArgs != nil {
+					if len(args.HelpArgs) != len(tt.wantHelpArgs) {
+						t.Fatalf("HelpArgs = %v, want %v", args.HelpArgs, tt.wantHelpArgs)
+					}
+					for i, a := range args.HelpArgs {
+						if a != tt.wantHelpArgs[i] {
+							t.Errorf("HelpArgs[%d] = %q, want %q", i, a, tt.wantHelpArgs[i])
+						}
+					}
 				}
 				if len(args.Patterns) != len(tt.wantPats) {
 					t.Fatalf("Patterns = %v, want %v", args.Patterns, tt.wantPats)

@@ -25,6 +25,10 @@ type Argument struct {
 	Debug string
 	// Patterns are the package patterns to analyze (e.g., "./...").
 	Patterns []string
+	// Help indicates the "help" subcommand was specified.
+	Help bool
+	// HelpArgs holds arguments after "help" (e.g., ["phase", "scan"]).
+	HelpArgs []string
 }
 
 // Dbg reports whether the debug flag b is set.
@@ -85,8 +89,22 @@ func ParseArgs(programName string, args []string) (*Argument, error) {
 		return nil, err
 	}
 
-	patterns := fs.Args()
-	if len(patterns) == 0 {
+	positional := fs.Args()
+
+	// Detect "help" subcommand before checking for packages.
+	if len(positional) > 0 && positional[0] == "help" {
+		return &Argument{
+			Fix:       fix,
+			PrintDiff: printDiff,
+			JSON:      jsonMode,
+			Test:      test,
+			Debug:     debug,
+			Help:      true,
+			HelpArgs:  positional[1:],
+		}, nil
+	}
+
+	if len(positional) == 0 {
 		return nil, fmt.Errorf("no packages specified")
 	}
 
@@ -96,6 +114,6 @@ func ParseArgs(programName string, args []string) (*Argument, error) {
 		JSON:      jsonMode,
 		Test:      test,
 		Debug:     debug,
-		Patterns:  patterns,
+		Patterns:  positional,
 	}, nil
 }
